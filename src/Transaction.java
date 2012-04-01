@@ -1,11 +1,19 @@
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
 import java.util.*;
 
 public class Transaction extends ArrayList<String> {
 
-	String file_name = new String();
+	FileInputStream fis;
+	DataInputStream dis;
+	BufferedReader br;
+	public int tid;
 	
-	public Transaction(String _file_name){
-		file_name = _file_name;
-		
+	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid){
+		fis = _fis;
+		dis = _dis;
+		br = _br;
+		tid = _tid;
 	}
 }
