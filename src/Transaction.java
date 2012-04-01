@@ -6,5 +6,6 @@ public class Transaction extends ArrayList<String> {
 	
 	public Transaction(String _file_name){
 		file_name = _file_name;
+		
 	}
 }
