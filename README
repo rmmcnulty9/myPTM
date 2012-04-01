@@ -1,0 +1,71 @@
+CS 2550 Project Design
+Jeff Goldsworthy (jmg199) & Ryan McNulty (rmm81)
+Data Structures and Classes: Many different data structures will be used as components
+of Java classes. Some of these more notable structures are lock trees with lock coupling,
+transaction journals or logs and the Scheduler, DataManager and TransactionManager.
+● LockTree - The LockTree will be maintained by the Scheduler. Before granting a lock
+   the Scheduler traverses the LockTree putting the appropriate locks (intent, shared,
+  or exclusive) at each level until the desired lock is granted.The nodes will have a list
+ ordered by timestamp for requested lock and a list for granted locks. The LockTree
+will also be used to find deadlocked transactions by comparing the granted locks and
+requested locks on each node. We will use Lock Coupling in our Locktree to help
+increase concurrency. One down side is our requests will have to go deeper in the tree
+to find out if it is blocked. But this time will be made up because fewer locks need to be
+released at the end of a transaction.
+● Data Files, Pages and Records - Pages will contain Records which come from the
+   data files opened by the DataManager. Records will contains the data in each field of
+  a given records, the ID, Client Name, and Phone. This structures will be built by the
+ DataManager and passed to the Scheduler to become part of the Scheduler’s LockTree.
+● Transactions and TransactionManager - The TransactionManager will create
+   Transactions by spawning a thread. Using either random or round robin methods of
+  concurrent reading and pass the operations into the Transaction for the Scheduler to
+ process. Therefore, associated with the Transaction will be its set of operations both
+scheduled & unscheduled. The Transaction will also have handles to the locks it holds
+and handles to the locks it has requested.
+● Scheduler - The Scheduler will manage the LockTree by taking the operations passed
+   into it by the TransactionManger through the Transaction. Using the LockTree it will
+  obtains locks need for operations putting the appropriate flags in the tree structure and
+ return handles for the locks to the Transaction. Once the locks have been acquired the
+operations move from being unscheduled to scheduled and the DataManager can then
+execute it.
+● DataManager and Journals - The DataManager maintains the Pages in the memory
+   buffer. It performs either scan or hash search methods on directed files to find the Page
+  it needs to load for a given operation. While performing an operation the DataManager
+ will store in its Journal (aka log buffer) an undo operation for it. This way in the case of
+an abort the DataManager can undo a Transaction’s operation set. The DataManager
+ will maintain a buffer management table consisting of the block ID, dirty bit, fix count,
+page LSN, Stable-LSN and page number. Additionally the DataManager will use a
+modified greedy dual page replacement scheme using the fix count as an indication of
+which pages are eligible for replacement in addition to the Least Recently Used and
+Least Frequently Used criteria.
+Methods: Different schemes will need to be implemented for dealing with aborts and deadlocks.
+The following is a discussion of what methods will be used to deal with these problems.
+● Undo - Once the DataManager is notified that a transaction has aborted it will use the
+   Journal to rollback. Each entry in the Journal will connected as a double linked list using
+  the LSN of the previous and next entry. By using checkpoints the DataManager will do
+ periodic garbage collection on the Journal, removing committed operations occurring
+before the last commit, all aborted or checkpointed operations, and any committed
+value matching the value already on stable storage. The checkpointing method used
+by the DataManager will be Fuzzy Checkpoints. The system will stop accepting new
+operations, then flush to disk only the dirty buffer blocks that were not flushed in the
+previous checkpoint and force-write the checkpoint record to the Journal, then finally
+resumes normal operation. The trade-off to using this type of checkpoint is that during
+a redo the blocked active transactions have to be redone prior to the checkpoint. Since
+we are not required to handle redo in this project, this drawback becomes moot.
+● Deadlocks - Deadlocks will be detected by creating a deadlock queue containing
+   transactions with timestamps of when they last executed an operation. In conjunction
+  with this queue a polling timer will be created. When this timer expires it will look at
+ the locks granted and requested by any transaction in the deadlock queue that have
+expired. For instance, if the timer expires and the transaction T1’s deadlock queue
+ timestamp is less than some threshold this means the transaction has not progressed in
+the set amount of time and is therefore potentially in deadlock. In this case the locks that
+transaction has been granted and has requested are examined. In this examination we
+will look for the at least one other transaction that is holding a locks that T1 needs. When
+it is found the Wound-Wait algorithm will be used to resolve the deadlock. It is assumed
+that undo operations will be very costly which is why we will use Wound-Wait because
+the older transaction, presumably with a longer operation history, will never be aborted.
+● Strict/Rigorous 2PL - Once the Scheduler receives an abort or commit operations from a
+   Transaction by way of the TransactionManager it will access the LockTree and release
+  all the locks for that Transaction. This will be the only way locks can be released, by the
+ definition of the Strict Industry 2PL scheme.
+
