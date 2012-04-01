@@ -81,10 +81,10 @@ public class TranscationManager extends Thread{
 		
 	}
 	
-	
-	public void passTransactionToDM(Transaction t){
-		Scheduler.getTransaction
-	}
-	}
+	//create Scheduler
+//	public void passTransactionToDM(Transaction t){
+//		Scheduler.getTransaction
+//	
+//	}
 	
 }

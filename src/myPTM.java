@@ -10,12 +10,12 @@ public class myPTM {
 		 */
 		TranscationManager tm = new TranscationManager(null, 0, null);
 		tm.start();
-		
-		Scheduler s = new Scheduler();
-		s.start();
-		
-		DataManager dm = new DataManager();
-		dm.start();
+		// created in TM
+//		Scheduler s = new Scheduler();
+//		s.start();
+//		//created in Scheduler
+//		DataManager dm = new DataManager();
+//		dm.start();
 
 	}
 
