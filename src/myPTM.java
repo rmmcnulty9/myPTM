@@ -5,7 +5,10 @@ public class myPTM {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		/*
+		 * myPTM --scheduler <rr|seed#> --buffer <integer> --processes <1...N file names> 
+		 */
+		
 
 	}
 

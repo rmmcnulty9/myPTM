@@ -1,8 +1,10 @@
 CS 2550 Project Design
 Jeff Goldsworthy (jmg199) & Ryan McNulty (rmm81)
+
 Data Structures and Classes: Many different data structures will be used as components
 of Java classes. Some of these more notable structures are lock trees with lock coupling,
 transaction journals or logs and the Scheduler, DataManager and TransactionManager.
+
 ● LockTree - The LockTree will be maintained by the Scheduler. Before granting a lock
    the Scheduler traverses the LockTree putting the appropriate locks (intent, shared,
   or exclusive) at each level until the desired lock is granted.The nodes will have a list
@@ -12,22 +14,26 @@ requested locks on each node. We will use Lock Coupling in our Locktree to help
 increase concurrency. One down side is our requests will have to go deeper in the tree
 to find out if it is blocked. But this time will be made up because fewer locks need to be
 released at the end of a transaction.
+
 ● Data Files, Pages and Records - Pages will contain Records which come from the
    data files opened by the DataManager. Records will contains the data in each field of
   a given records, the ID, Client Name, and Phone. This structures will be built by the
  DataManager and passed to the Scheduler to become part of the Scheduler’s LockTree.
+
 ● Transactions and TransactionManager - The TransactionManager will create
    Transactions by spawning a thread. Using either random or round robin methods of
   concurrent reading and pass the operations into the Transaction for the Scheduler to
  process. Therefore, associated with the Transaction will be its set of operations both
 scheduled & unscheduled. The Transaction will also have handles to the locks it holds
 and handles to the locks it has requested.
+
 ● Scheduler - The Scheduler will manage the LockTree by taking the operations passed
    into it by the TransactionManger through the Transaction. Using the LockTree it will
   obtains locks need for operations putting the appropriate flags in the tree structure and
  return handles for the locks to the Transaction. Once the locks have been acquired the
 operations move from being unscheduled to scheduled and the DataManager can then
 execute it.
+
 ● DataManager and Journals - The DataManager maintains the Pages in the memory
    buffer. It performs either scan or hash search methods on directed files to find the Page
   it needs to load for a given operation. While performing an operation the DataManager
@@ -38,8 +44,10 @@ page LSN, Stable-LSN and page number. Additionally the DataManager will use a
 modified greedy dual page replacement scheme using the fix count as an indication of
 which pages are eligible for replacement in addition to the Least Recently Used and
 Least Frequently Used criteria.
+
 Methods: Different schemes will need to be implemented for dealing with aborts and deadlocks.
 The following is a discussion of what methods will be used to deal with these problems.
+
 ● Undo - Once the DataManager is notified that a transaction has aborted it will use the
    Journal to rollback. Each entry in the Journal will connected as a double linked list using
   the LSN of the previous and next entry. By using checkpoints the DataManager will do
@@ -52,6 +60,7 @@ previous checkpoint and force-write the checkpoint record to the Journal, then f
 resumes normal operation. The trade-off to using this type of checkpoint is that during
 a redo the blocked active transactions have to be redone prior to the checkpoint. Since
 we are not required to handle redo in this project, this drawback becomes moot.
+
 ● Deadlocks - Deadlocks will be detected by creating a deadlock queue containing
    transactions with timestamps of when they last executed an operation. In conjunction
   with this queue a polling timer will be created. When this timer expires it will look at
@@ -64,6 +73,7 @@ will look for the at least one other transaction that is holding a locks that T1
 it is found the Wound-Wait algorithm will be used to resolve the deadlock. It is assumed
 that undo operations will be very costly which is why we will use Wound-Wait because
 the older transaction, presumably with a longer operation history, will never be aborted.
+
 ● Strict/Rigorous 2PL - Once the Scheduler receives an abort or commit operations from a
    Transaction by way of the TransactionManager it will access the LockTree and release
   all the locks for that Transaction. This will be the only way locks can be released, by the
