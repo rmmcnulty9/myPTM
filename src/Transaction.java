@@ -3,7 +3,7 @@ import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.util.*;
 
-public class Transaction extends ArrayList<String> {
+public class Transaction extends ArrayList<Operation> {
 
 	FileInputStream fis;
 	DataInputStream dis;
