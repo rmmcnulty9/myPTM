@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.*;
 
 public class Transaction extends ArrayList<Operation> {
@@ -16,4 +17,15 @@ public class Transaction extends ArrayList<Operation> {
 		br = _br;
 		tid = _tid;
 	}
+	
+	public void end(){
+		try {
+			br.close();
+			dis.close();
+			fis.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 }
