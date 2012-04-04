@@ -1,0 +1,92 @@
+B 1
+W sampleDataFile.txt (1682,Faye,242-325-4247)
+W sampleDataFile.txt (265,Bebop,486-823-3643)
+W sampleDataFile.txt (1093,Jet,782-401-5638)
+R sampleDataFile.txt 942
+R sampleDataFile.txt 1710
+R sampleDataFile.txt 324
+R sampleDataFile.txt 1794
+W sampleDataFile.txt (1761,Faye,183-310-0626)
+R sampleDataFile.txt 639
+R sampleDataFile.txt 1161
+W sampleDataFile.txt (812,Seras,577-888-6814)
+R sampleDataFile.txt 906
+R sampleDataFile.txt 1810
+R sampleDataFile.txt 1754
+R sampleDataFile.txt 485
+R sampleDataFile.txt 1732
+W sampleDataFile.txt (1447,Ed,506-230-1665)
+R sampleDataFile.txt 1485
+D sampleDataFile.txt
+D sampleDataFile.txt
+R sampleDataFile.txt 1145
+D sampleDataFile.txt
+W sampleDataFile.txt (671,Deedlit,544-485-8637)
+R sampleDataFile.txt 1010
+R sampleDataFile.txt 614
+R sampleDataFile.txt 732
+W sampleDataFile.txt (467,Seras,307-712-1250)
+W sampleDataFile.txt (1653,Faye,246-687-1561)
+W sampleDataFile.txt (883,Parn,282-805-3736)
+R sampleDataFile.txt 1028
+R sampleDataFile.txt 1894
+W sampleDataFile.txt (668,Faye,005-444-2421)
+R sampleDataFile.txt 1433
+W sampleDataFile.txt (257,Bebop,512-643-1527)
+R sampleDataFile.txt 875
+W sampleDataFile.txt (696,Parn,452-048-7247)
+R sampleDataFile.txt 119
+W sampleDataFile.txt (1974,Jet,545-663-8355)
+W sampleDataFile.txt (467,Spike,802-872-2358)
+R sampleDataFile.txt 999
+D sampleDataFile.txt
+R sampleDataFile.txt 560
+W sampleDataFile.txt (552,Parn,205-636-7048)
+R sampleDataFile.txt 286
+R sampleDataFile.txt 619
+W sampleDataFile.txt (961,Jet,846-044-1112)
+R sampleDataFile.txt 604
+R sampleDataFile.txt 944
+W sampleDataFile.txt (422,Parn,084-634-8621)
+D sampleDataFile.txt
+R sampleDataFile.txt 206
+W sampleDataFile.txt (1974,Hellsing,582-225-6737)
+W sampleDataFile.txt (60,Faye,522-108-3672)
+D sampleDataFile.txt
+W sampleDataFile.txt (1504,Ed,010-584-5138)
+R sampleDataFile.txt 1061
+W sampleDataFile.txt (971,Faye,781-884-7405)
+R sampleDataFile.txt 410
+W sampleDataFile.txt (806,Alucard,641-265-4124)
+W sampleDataFile.txt (1,Spike,043-516-0761)
+R sampleDataFile.txt 1903
+R sampleDataFile.txt 1236
+D sampleDataFile.txt
+R sampleDataFile.txt 1026
+R sampleDataFile.txt 722
+R sampleDataFile.txt 1966
+D sampleDataFile.txt
+D sampleDataFile.txt
+R sampleDataFile.txt 1233
+D sampleDataFile.txt
+D sampleDataFile.txt
+D sampleDataFile.txt
+W sampleDataFile.txt (106,Faye,384-427-1562)
+R sampleDataFile.txt 1329
+W sampleDataFile.txt (934,Jet,012-216-5532)
+R sampleDataFile.txt 418
+R sampleDataFile.txt 1577
+R sampleDataFile.txt 173
+D sampleDataFile.txt
+R sampleDataFile.txt 1571
+R sampleDataFile.txt 327
+W sampleDataFile.txt (217,Parn,313-365-1645)
+W sampleDataFile.txt (995,Ed,808-014-2532)
+D sampleDataFile.txt
+R sampleDataFile.txt 596
+W sampleDataFile.txt (1450,Parn,224-840-0586)
+W sampleDataFile.txt (34,Ed,657-030-2158)
+R sampleDataFile.txt 36
+D sampleDataFile.txt
+W sampleDataFile.txt (887,Lodoss,641-512-5368)
+A

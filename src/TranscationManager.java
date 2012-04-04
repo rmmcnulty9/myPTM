@@ -75,7 +75,8 @@ public class TranscationManager extends Thread{
 		}
 	}
 
-	public TranscationManager(String read_method, int buffer, ArrayList<String> file_list){
+	public TranscationManager(String read_method, int buffer, 
+			String search_method, ArrayList<String> file_list, String df_name){
 
 		//Create transactions, one for each file
 		for(int i=0;i<file_list.size();i++){
@@ -108,7 +109,8 @@ public class TranscationManager extends Thread{
 		}
 
 		if(scheduler==null){
-			scheduler = new Scheduler(transactions, buffer);
+			scheduler = new Scheduler(transactions, buffer, df_name, search_method);
+			scheduler.run();
 		}
 	}
 

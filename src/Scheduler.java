@@ -11,11 +11,12 @@ public class Scheduler extends Thread{
 	
 	private DataManager dm = null;
 	
-	public Scheduler(ArrayList<Transaction> _transactions, int buffer){
+	public Scheduler(ArrayList<Transaction> _transactions, int buffer, String df_name, String search_method){
 		transactions = _transactions;
 		
 		if(dm == null){
-			dm = new DataManager(current_op,buffer);
+			dm = new DataManager(current_op, buffer, df_name, search_method);
+			dm.run();
 		}
 	}
 	
