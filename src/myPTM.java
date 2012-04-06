@@ -15,7 +15,6 @@ public class myPTM {
 		ArrayList<String> files = new ArrayList<String>();
 		
 		//For DM
-		String df_name = "sampleDataFile.txt";
 		String search_method=null;
 		int buffer = -1;
 		
@@ -63,7 +62,7 @@ public class myPTM {
 			System.exit(0);
 		}
 		
-		TranscationManager tm = new TranscationManager(scheduler, buffer, search_method, files, df_name);
+		TranscationManager tm = new TranscationManager(scheduler, buffer, search_method, files);
 		tm.start();
 
 

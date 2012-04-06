@@ -12,6 +12,7 @@ public class Transaction extends ArrayList<Operation> {
 	public int tid;
 	public boolean ops_left_in_file;
 	
+	
 	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid){
 		fis = _fis;
 		dis = _dis;
