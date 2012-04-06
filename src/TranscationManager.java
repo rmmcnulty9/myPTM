@@ -23,25 +23,22 @@ public class TranscationManager extends Thread{
 	public void run(){
 		int next_tid=1;
 
-
-		while(!shutdown_flag){
-
+		while(!transactions.isEmpty()){
+			
 			if(rr_read){
 
 				String op = null;
-				try {
-					op = getByTID(next_tid).br.readLine();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				if (op == null){
-					/*
-					 * End Transaction?
-					 */
-					getByTID(next_tid).end();
-					removeByTID(next_tid);
-				}else{
-					getByTID(next_tid).add(new Operation(op));
+				if(isOpLeftInFile(next_tid)){
+					try {
+						op = getByTID(next_tid).br.readLine();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					if (op == null){
+						setOpsLeftInFile(next_tid, false);
+					}else{
+						getByTID(next_tid).add(new Operation(op));
+					}
 				}
 				next_tid+=1;
 				if(next_tid>transactions.size()) next_tid=1;
@@ -49,29 +46,23 @@ public class TranscationManager extends Thread{
 			}else if(random_read){
 				next_tid = rgen.nextInt(transactions.size());
 				int num_lines = rgen.nextInt(MAX_OPS_TO_READ);
-				for(int i=0;i<num_lines;i++){
-					String op = null;
-					try {
-						op = getByTID(next_tid).br.readLine();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-					if (op == null){
-						/*
-						 * End Transaction?
-						 */
-						getByTID(next_tid).end();
-						removeByTID(next_tid);
-					}else{
-						getByTID(next_tid).add(new Operation(op));
+
+				if(isOpLeftInFile(next_tid)){
+					for(int i=0;i<num_lines;i++){
+						String op = null;
+						try {
+							op = getByTID(next_tid).br.readLine();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						if (op == null){
+							setOpsLeftInFile(next_tid, false);
+						}else{
+							getByTID(next_tid).add(new Operation(op));
+						}
 					}
 				}
 			}
-			
-			if(transactions.size()==0){
-				shutdown_flag=true;
-			}
-			
 		}
 	}
 
@@ -114,11 +105,8 @@ public class TranscationManager extends Thread{
 		}
 	}
 
-	public void getNextOperation(){
 
-	}
-
-
+	
 	public Transaction getByTID(int tid){
 		for(int i=0;i<transactions.size();i++){
 			if(transactions.get(i).tid == tid){
@@ -128,14 +116,35 @@ public class TranscationManager extends Thread{
 		return null;
 	}
 
-	public boolean removeByTID(int tid){
+	public boolean setOpsLeftInFile(int tid, boolean val){
 		for(int i=0;i<transactions.size();i++){
 			if(transactions.get(i).tid == tid){
-				transactions.remove(i);
-				return true;
+				 transactions.get(i).ops_left_in_file = val;
+				 return true;
 			}
 		}
 		return false;
 	}
+	
+	public boolean isOpLeftInFile(int tid){
+		for(int i=0;i<transactions.size();i++){
+			if(transactions.get(i).tid == tid){
+				 return transactions.get(i).ops_left_in_file;
+			}
+		}
+		return false;
+	}
+	
+//	Not needed anymore - done in Scheduler
+//	
+//	public boolean removeByTID(int tid){
+//		for(int i=0;i<transactions.size();i++){
+//			if(transactions.get(i).tid == tid){
+//				transactions.remove(i);
+//				return true;
+//			}
+//		}
+//		return false;
+//	}
 
 }

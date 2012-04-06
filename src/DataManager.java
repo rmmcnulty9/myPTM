@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+
 
 public class DataManager extends Thread {
 	public Pair current_op = null;
@@ -8,7 +10,7 @@ public class DataManager extends Thread {
 	private String search_method;
 	private Journal journal;
 	private int buffer_mgmt_table[][];
-	public DataFile data_file;
+	public ArrayList<Page> data_file;
 	
 	public DataManager(Pair _current_op, int buffer, String df_name, String _search_method) {
 		current_op = _current_op;
@@ -24,7 +26,7 @@ public class DataManager extends Thread {
 		search_method = _search_method;
 		
 		//TODO Initialize LockTree/ open DataFile
-		data_file = new DataFile(df_name, search_method, buffer);
+		data_file = new ArrayList<Page>();
 		journal = new Journal();
 		
 	}
