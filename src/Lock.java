@@ -1,0 +1,4 @@
+
+public enum Lock {
+	PROC_READ, PROC_WRITE, TRAN_READ, TRAN_WRITE
+}
