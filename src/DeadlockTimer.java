@@ -14,10 +14,11 @@ public class DeadlockTimer {
      * Summary:
      * Class Ctor.
      */
-    public MyTimer(int seconds, &callbackTarget) {
+    public void MyTimer(int seconds, Scheduler callbackTarget) {
         timer = new Timer();
         timer.schedule(new RemindTask(), seconds*1000);
 	}
+
 
     /*
      * Summary:
@@ -25,6 +26,7 @@ public class DeadlockTimer {
      */
     class RemindTask extends TimerTask {
         public void run() {
+            // TODO: (goldswjm) Change this to a call in the scheduler.
             System.out.format("Time's up!%n");
             timer.cancel(); //Terminate the timer thread
         }
