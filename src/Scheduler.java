@@ -16,7 +16,7 @@ public class Scheduler extends Thread{
 
     // This list is used to keep track of which txns still need to commit/abort.
     // TODO: (goldswjm) THIS PROBABLY WON"T BE NEEDED.
-    private ArrayList<int> pendingTxnIds = null;
+    private ArrayList<Integer> pendingTxnIds = null;
 
     // Our DM reference.
 	private DataManager dm_task = null;
