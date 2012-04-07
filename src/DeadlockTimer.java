@@ -15,7 +15,9 @@ public class DeadlockTimer {
      * Class Ctor.
      */
     public void MyTimer(int seconds, Scheduler callbackTarget) {
-        timer = new Timer();
+        // Create thread as a daemon. When program completes, and only daemon tasks remain, the program exits.
+        timer = new Timer(true);
+
         timer.schedule(new RemindTask(), seconds*1000);
 	}
 

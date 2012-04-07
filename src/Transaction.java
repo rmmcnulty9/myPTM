@@ -6,16 +6,23 @@ import java.util.*;
 
 public class Transaction extends ArrayList<Operation> {
 
+	/*
+	 * TODO I believe we might only need to hold on to the BufferedReader,
+	 *  but since we have the structure already I have left it
+	 */
 	FileInputStream fis;
 	DataInputStream dis;
 	BufferedReader br;
 	public int tid;
+	public boolean ops_left_in_file;
+	
 	
 	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid){
 		fis = _fis;
 		dis = _dis;
 		br = _br;
 		tid = _tid;
+		ops_left_in_file = true;
 	}
 	
 	public void end(){

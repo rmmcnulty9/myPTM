@@ -1,0 +1,12 @@
+B 0
+W sampleDataFile.txt (903,Bebop,843-762-7553)
+R sampleDataFile.txt 799
+R sampleDataFile.txt 1995
+W sampleDataFile.txt (1812,Lodoss,416-632-7327)
+D sampleDataFile.txt
+R sampleDataFile.txt 1432
+W sampleDataFile.txt (959,Bebop,588-378-3260)
+R sampleDataFile.txt 994
+W sampleDataFile.txt (25,Lodoss,871-412-1846)
+R sampleDataFile.txt 383
+C

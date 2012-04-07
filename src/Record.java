@@ -9,4 +9,8 @@ public class Record {
 		ClientName = c;
 		Phone = p;
 	}
+	
+	public String toString(){
+		return "["+ID+" "+ClientName+" "+Phone+"]";
+	}
 }
