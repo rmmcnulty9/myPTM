@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -18,10 +19,15 @@ public class DataFile {
 	
 	public DataFile(String _fn){
 		filename = _fn;
-		
+		File f = new File(filename);
 		try {
-			fis = new FileInputStream(filename);
-			inputStream = new ObjectInputStream(fis);
+			f.createNewFile();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		try {
+			fos = new FileOutputStream(f);
+			outputStream = new ObjectOutputStream(fos);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			System.exit(0);
@@ -30,8 +36,8 @@ public class DataFile {
 			System.exit(0);
 		}
 		try {
-			fos = new FileOutputStream(filename);
-			outputStream = new ObjectOutputStream(fos);
+			fis = new FileInputStream(f);
+			inputStream = new ObjectInputStream(fis);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			System.exit(0);
@@ -58,7 +64,15 @@ public class DataFile {
 	public int getPageIDByID(int id){
 		return page_ids.get(page_ids.indexOf(new Integer(id)));
 	}
+	
+	public boolean isEmpty(){
+		return page_ids.size()==0;
+	}
 
+	public boolean delete(){
+		File f = new File("filename");
+		return f.delete();
+	}
 	
 	public boolean close(){
 		try {
