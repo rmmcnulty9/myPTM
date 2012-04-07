@@ -1,6 +1,6 @@
 
 public class Operation {
-	
+	int tid;
 	String type;
 	String flag;
 	String filename;
@@ -8,8 +8,8 @@ public class Operation {
 	Record record;
 	
 	
-	public Operation(String op){
-		
+	public Operation(int t, String op){
+		tid = t;
 		String op_parts[] = op.split(" ", 2);
 		
 		type = op_parts[0];

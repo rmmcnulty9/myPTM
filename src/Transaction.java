@@ -6,6 +6,10 @@ import java.util.*;
 
 public class Transaction extends ArrayList<Operation> {
 
+	/*
+	 * TODO I believe we might only need to hold on to the BufferedReader,
+	 *  but since we have the structure already I have left it
+	 */
 	FileInputStream fis;
 	DataInputStream dis;
 	BufferedReader br;

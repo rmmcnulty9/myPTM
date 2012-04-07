@@ -37,7 +37,7 @@ public class TranscationManager extends Thread{
 					if (op == null){
 						setOpsLeftInFile(next_tid, false);
 					}else{
-						getByTID(next_tid).add(new Operation(op));
+						getByTID(next_tid).add(new Operation(next_tid, op));
 					}
 				}
 				next_tid+=1;
@@ -58,7 +58,7 @@ public class TranscationManager extends Thread{
 						if (op == null){
 							setOpsLeftInFile(next_tid, false);
 						}else{
-							getByTID(next_tid).add(new Operation(op));
+							getByTID(next_tid).add(new Operation(next_tid, op));
 						}
 					}
 				}

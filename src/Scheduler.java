@@ -4,7 +4,7 @@ import java.util.Map;
 
 public class Scheduler extends Thread{
 
-	public ArrayList<Pair> current_op = null;
+	public ArrayList<Operation> current_op = null;
 
 	private ArrayList<Transaction> transactions = null;
 	private int deadlock_op_cnt;
