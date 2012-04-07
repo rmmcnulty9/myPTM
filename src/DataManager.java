@@ -8,6 +8,8 @@ import java.util.ArrayList;
 
 
 public class DataManager extends Thread {
+	public static int next_global_page_id;
+	
 	public ArrayList<Operation> current_op = null;
 	
 	private boolean shutdown_flag=false;
@@ -17,13 +19,13 @@ public class DataManager extends Thread {
 	private Journal journal;
 	private int buffer_mgmt_table[][];
 	private ArrayList<Page> buffer;
-	private ArrayList<Integer> page_ids;
 	
 	public ArrayList<DataFile> data_files;
 	
 	public DataManager(ArrayList<Operation> _current_op, int _buffer_size, String _search_method, Scheduler s) {
 		current_op = _current_op;
 		buffer_size = _buffer_size;
+		next_global_page_id=0;
 		/*
 		 * Buffer Management table has(in order):
 		 * 	block ID, dirty bit, fix count, page LSN, Stable-LSN and page number
@@ -31,7 +33,7 @@ public class DataManager extends Thread {
 		
 		buffer_mgmt_table = new int[buffer_size][6];
 		buffer = new ArrayList<Page>(buffer_size);
-		page_ids = new ArrayList<Integer>();
+		
 		
 		search_method = _search_method;
 		
@@ -67,9 +69,40 @@ public class DataManager extends Thread {
 				if(search_method.equals("scan")){
 					
 					if(op.type.equals("R")){
+						DataFile df = getDataFile(op.filename);
+						//First check the buffer for desired page
+						for(int j=0;j<buffer.size();j++){
+							Page p = buffer.get(j);
+							Record r = p.getRecordFromPage(Integer.parseInt(op.val));
+							if(r!=null){
+								System.out.println(r);
+								//TODO pass back to Scheduler Record
+							}
+						}
 						
+						//If not check if buffer is full if so do replacement, else just add Page
+						if(buffer.size()==buffer_size){
+							//TODO Replacement
+						}else{
+						
+						int i=0;					
+						while(df.getPageIDByIndex(i)!= -1){
+							int page_id = df.getPageIDByIndex(i);
+							Page p = loadPage(df, page_id);
+							Record r = p.getRecordFromPage(Integer.parseInt(op.val));
+							if(r!=null){
+								System.out.println(r);
+								//TODO pass back to Scheduler Record
+							}
+							i++;
+						}
+						//TODO pass back to Scheduler null Record
+						}
 						
 					}else if(op.type.equals("W")){
+						DataFile df = getDataFile(op.filename);
+						next_global_page_id = addRecordToFile(df, next_global_page_id);
+						
 						
 					}else if(op.type.equals("D")){
 						//TODO we may want to physically delete the data, but for now just remove from data file list
@@ -101,6 +134,12 @@ public class DataManager extends Thread {
 		}
 	}
 	
+	private int addRecordToFile(DataFile df, int next_pid) {
+		
+		
+		return next_pid;
+	}
+
 	public DataFile getDataFile(String fn){
 		for(int i=0;i<data_files.size();i++){
 			if(data_files.get(i).filename.equals(fn)){
@@ -158,7 +197,11 @@ public class DataManager extends Thread {
 		return false;
 	}
 	
-	private class Page extends ArrayList<Record>{
+	private class Page extends ArrayList<Record> implements java.io.Serializable{
+		/**
+		 * Generated serial ID so that Page objects can be written out to file
+		 */
+		private static final long serialVersionUID = -2938553534535400394L;
 		public static final int RECORDS_PER_PAGE = 15;
 		public static final int PAGE_SIZE_BYTES = 512;
 		public static final int RECORD_SIZE_BYTES = 34;
@@ -176,10 +219,20 @@ public class DataManager extends Thread {
 			return this.size()== RECORDS_PER_PAGE;
 		}
 		
+		public Record getRecordFromPage(int id){
+			for(int i=0;i<this.size();i++){
+				if(this.get(i).ID == id){
+					return this.get(i);
+				}
+			}
+			return null;
+		}
+		
+		
 		public String toString(){
 			String s="Page "+page_id+"\n";
 			for(int i=0;i<RECORDS_PER_PAGE;i++){
-				s+=	"Record "+i+":["+this.get(i).ID+" "+this.get(i).ClientName+" "+this.get(i).Phone+"]\n";
+				s+=	"Record "+i+": "+this.get(i).toString()+"\n";
 			}
 			return s;
 		}
