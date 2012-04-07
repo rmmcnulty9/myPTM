@@ -82,8 +82,9 @@ public class DataManager extends Thread {
 						
 						//If not check if buffer is full if so do replacement, else just add Page
 						if(buffer.size()==buffer_size){
-							//TODO Replacement
-						}else{
+							//TODO Replacement - for now remove the first in the Page
+							flushPage(buffer.get(0));
+						}
 						
 						int i=0;					
 						while(df.getPageIDByIndex(i)!= -1){
@@ -97,11 +98,11 @@ public class DataManager extends Thread {
 							i++;
 						}
 						//TODO pass back to Scheduler null Record
-						}
+						
 						
 					}else if(op.type.equals("W")){
 						DataFile df = getDataFile(op.filename);
-						next_global_page_id = addRecordToFile(df, next_global_page_id);
+						next_global_page_id = addRecordToFile(op.record, df, next_global_page_id);
 						
 						
 					}else if(op.type.equals("D")){
@@ -134,8 +135,41 @@ public class DataManager extends Thread {
 		}
 	}
 	
-	private int addRecordToFile(DataFile df, int next_pid) {
-		
+	private int addRecordToFile(Record new_r, DataFile df, int next_pid) {
+		//Find Record's place in directed DataFile
+		int i=0;					
+		while(df.getPageIDByIndex(i)!= -1){
+			int page_id = df.getPageIDByIndex(i);
+			Page p = loadPage(df, page_id);
+			Record r = p.get(i);
+			
+			if(r.ID>new_r.ID){
+				//Place infront of this record
+				
+				if(p.isFull()){
+					//Split the Page & shift
+					
+					return next_pid+1;
+				}else{
+					p.add(i-1,new_r);
+					return next_pid;
+				}
+			}
+			
+			
+			i++;
+			///Case when this ID is the largest
+			if(df.getPageIDByIndex(i)!= -1){
+				if(p.isFull()){
+					//Split the Page & shift
+					
+					return next_pid+1;
+				}else{
+					p.add(i-1,new_r);
+					return next_pid;
+				}
+			}
+		}
 		
 		return next_pid;
 	}
