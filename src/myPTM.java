@@ -63,6 +63,7 @@ public class myPTM {
 		}
 		
 		TranscationManager tm = new TranscationManager(scheduler, buffer, search_method, files);
+		System.out.println("Started TransactionManager...");
 		tm.start();
 
 

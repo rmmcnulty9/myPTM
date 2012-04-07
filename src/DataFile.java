@@ -13,25 +13,31 @@ public class DataFile {
 	public ObjectInputStream inputStream;
 	public ObjectOutputStream outputStream;
 	public FileOutputStream fos;
+	public FileInputStream fis;
 	private ArrayList <Integer> page_ids;
 	
 	public DataFile(String _fn){
 		filename = _fn;
 		
 		try {
-			inputStream = new ObjectInputStream(new FileInputStream(filename));
+			fis = new FileInputStream(filename);
+			inputStream = new ObjectInputStream(fis);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
+			System.exit(0);
 		} catch (IOException e) {
 			e.printStackTrace();
+			System.exit(0);
 		}
 		try {
 			fos = new FileOutputStream(filename);
 			outputStream = new ObjectOutputStream(fos);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
+			System.exit(0);
 		} catch (IOException e) {
 			e.printStackTrace();
+			System.exit(0);
 		}
 		
 		page_ids = new ArrayList<Integer>();
@@ -43,7 +49,7 @@ public class DataFile {
 	}
 	
 	public int getPageIDByIndex(int index){
-		if(index> page_ids.size()){
+		if(index>= page_ids.size()){
 			return -1;
 		}
 		return page_ids.get(index).intValue();
@@ -52,6 +58,7 @@ public class DataFile {
 	public int getPageIDByID(int id){
 		return page_ids.get(page_ids.indexOf(new Integer(id)));
 	}
+
 	
 	public boolean close(){
 		try {

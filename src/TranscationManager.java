@@ -4,7 +4,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.Random;
 
 
@@ -13,62 +12,76 @@ public class TranscationManager extends Thread{
 	public ArrayList<Transaction> transactions = new ArrayList<Transaction>();
 
 	private int MAX_OPS_TO_READ = 10;
-	private boolean shutdown_flag = false;
 	private boolean random_read = false;
 	private boolean rr_read = false;
 	private Random rgen = null;
+	private int buffer_size;
+	private String search_method;
 
 	private Scheduler scheduler = null;
 
 	public void run(){
-		int next_tid=1;
+		if(scheduler==null){
+			scheduler = new Scheduler(transactions, buffer_size, search_method);
+			System.out.println("Started Scheduler...");
+			scheduler.start();
+		}
+		
+		int next_index=0;
 
 		while(!transactions.isEmpty()){
 			
 			if(rr_read){
 
 				String op = null;
-				if(isOpLeftInFile(next_tid)){
+				Transaction trans = getByIndex(next_index);
+				if(isOpLeftInFile(trans.tid)){
 					try {
-						op = getByTID(next_tid).br.readLine();
+						op = trans.br.readLine();
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
 					if (op == null){
-						setOpsLeftInFile(next_tid, false);
+						setOpsLeftInFile(trans.tid, false);
 					}else{
-						getByTID(next_tid).add(new Operation(next_tid, op));
+						System.out.println("[TM] Read in operation:"+op.toString());
+						trans.add(new Operation(next_index, op));
 					}
 				}
-				next_tid+=1;
-				if(next_tid>transactions.size()) next_tid=1;
+				next_index+=1;
+				if(null == getByIndex(next_index)) next_index=0;
 
 			}else if(random_read){
-				next_tid = rgen.nextInt(transactions.size());
+				next_index = rgen.nextInt(transactions.size());
 				int num_lines = rgen.nextInt(MAX_OPS_TO_READ);
+				Transaction trans = getByIndex(next_index);
 
-				if(isOpLeftInFile(next_tid)){
+				if(isOpLeftInFile(trans.tid)){
 					for(int i=0;i<num_lines;i++){
 						String op = null;
 						try {
-							op = getByTID(next_tid).br.readLine();
+							op = trans.br.readLine();
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
 						if (op == null){
-							setOpsLeftInFile(next_tid, false);
+							setOpsLeftInFile(trans.tid, false);
 						}else{
-							getByTID(next_tid).add(new Operation(next_tid, op));
+							trans.add(new Operation(next_index, op));
 						}
 					}
 				}
 			}
 		}
+		System.out.println("[TM] No more operations.");
 	}
 
-	public TranscationManager(String read_method, int buffer, 
-			String search_method, ArrayList<String> file_list){
+	public TranscationManager(String read_method, int _buffer_size, 
+			String _search_method, ArrayList<String> file_list){
 
+		search_method = _search_method;
+		buffer_size = _buffer_size;
+		
 		//Create transactions, one for each file
 		for(int i=0;i<file_list.size();i++){
 			try{
@@ -78,10 +91,10 @@ public class TranscationManager extends Thread{
 				BufferedReader br = new BufferedReader(new InputStreamReader(in));
 				String strLine;
 				//Read File Line By Line
-				while ((strLine = br.readLine()) != null)   {
-					// Print the content on the console
-					System.out.println (strLine);
-				}
+//				while ((strLine = br.readLine()) != null)   {
+//					// Print the content on the console
+//					System.out.println (strLine);
+//				}
 				transactions.add(new Transaction(fis, in, br, i));
 			}catch(IOException e){
 				e.printStackTrace();
@@ -98,11 +111,6 @@ public class TranscationManager extends Thread{
 			random_read = true;
 			rgen = new Random(Integer.parseInt(read_method));
 		}
-
-		if(scheduler==null){
-			scheduler = new Scheduler(transactions, buffer, search_method);
-			scheduler.run();
-		}
 	}
 
 
@@ -114,6 +122,13 @@ public class TranscationManager extends Thread{
 			}
 		}
 		return null;
+	}
+	
+	public Transaction getByIndex(int index){
+		if(index>=transactions.size()){
+			return null;
+		}
+		return transactions.get(index);
 	}
 
 	public boolean setOpsLeftInFile(int tid, boolean val){

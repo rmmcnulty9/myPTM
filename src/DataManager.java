@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class DataManager extends Thread {
 	public static int next_global_page_id;
 	
-	public ArrayList<Operation> current_op = null;
+	public ArrayList<Operation> current_ops = null;
 	
 	private boolean shutdown_flag=false;
 	private int checkpoint_op_cnt;
@@ -23,7 +23,7 @@ public class DataManager extends Thread {
 	public ArrayList<DataFile> data_files;
 	
 	public DataManager(ArrayList<Operation> _current_op, int _buffer_size, String _search_method, Scheduler s) {
-		current_op = _current_op;
+		current_ops = _current_op;
 		buffer_size = _buffer_size;
 		next_global_page_id=0;
 		/*
@@ -45,10 +45,13 @@ public class DataManager extends Thread {
 	}
 
 	public void run(){
-		
-		while(!shutdown_flag){
-			if(!current_op.isEmpty()){
-				Operation op = current_op.get(0);
+		/*
+		 * TODO run as long as there are operations. This needs to be changed
+		 */
+		while(!current_ops.isEmpty()){
+			if(!current_ops.isEmpty()){
+				Operation op = current_ops.get(0);
+				current_ops.remove(0);
 				
 				//TODO I think B(Begin) is processed by the Scheduler, I don't think it's needed in here
 				
@@ -59,8 +62,7 @@ public class DataManager extends Thread {
 				}else{
 					assert(op.filename!=null);
 					//If the filename is not in pages file list add it
-					//TODO might not be able to use contains here on BufferedReaders??
-					if(!data_files.contains(op.filename)){
+					if(null == getDataFile(op.filename)){
 						data_files.add(new DataFile(op.filename));
 					}
 				}
@@ -69,6 +71,8 @@ public class DataManager extends Thread {
 				if(search_method.equals("scan")){
 					
 					if(op.type.equals("R")){
+						
+						System.out.println("Scan Method: Reading...");
 						DataFile df = getDataFile(op.filename);
 						//First check the buffer for desired page
 						for(int j=0;j<buffer.size();j++){
@@ -101,11 +105,15 @@ public class DataManager extends Thread {
 						
 						
 					}else if(op.type.equals("W")){
+
+						System.out.println("Scan Method: Writing...");
 						DataFile df = getDataFile(op.filename);
 						next_global_page_id = addRecordToFile(op.record, df, next_global_page_id);
 						
 						
 					}else if(op.type.equals("D")){
+
+						System.out.println("Scan Method: Delete...");
 						//TODO we may want to physically delete the data, but for now just remove from data file list
 						DataFile df = getDataFile(op.filename);
 						df.close();
@@ -116,11 +124,16 @@ public class DataManager extends Thread {
 				}else if(search_method.equals("hash")){
 
 					if(op.type.equals("R")){
-						
+						System.out.println("Hash Method: Reading...");
+						System.exit(0);
 						
 					}else if(op.type.equals("W")){
+						System.out.println("Hash Method: Writing...");
+						System.exit(0);
 						
 					}else if(op.type.equals("D")){
+
+						System.out.println("Hash Method: Delete...");
 						//TODO we may want to physically delete the data, but for now just remove from data file list
 						DataFile df = getDataFile(op.filename);
 						df.close();

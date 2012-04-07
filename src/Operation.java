@@ -6,11 +6,13 @@ public class Operation {
 	String filename;
 	String val;
 	Record record;
+	String op_string;
 	
 	
 	public Operation(int t, String op){
 		tid = t;
-		String op_parts[] = op.split(" ", 2);
+		op_string = op;
+		String op_parts[] = op.split(" ", 3);
 		
 		type = op_parts[0];
 		
@@ -26,7 +28,9 @@ public class Operation {
 		}else if(type.equals("D")){
 			filename = op_parts[1];
 		}else if(type.equals("W")){
-			String rec[] = op_parts[2].split("(*, *, *)");
+			filename = op_parts[1];
+			op_parts[2] = op_parts[2].substring(1, op_parts[2].length()-1);
+			String rec[] = op_parts[2].split(",");
 			if(rec.length!=3){
 				System.out.println("Bad record.");
 				System.exit(0);
@@ -36,5 +40,9 @@ public class Operation {
 		
 	}
 	
+	public String toString(){
+		
+		return  op_string;
+	}
 	
 }
