@@ -7,7 +7,7 @@ import java.util.*;
 public class Transaction extends ArrayList<Operation> {
 
 	/**
-	 * 
+	 *
 	 */
 	private static final long serialVersionUID = -8187588735709506147L;
 
@@ -41,4 +41,13 @@ public class Transaction extends ArrayList<Operation> {
 		}
 	}
 
+
+
+    /*
+     * @summary
+     * This getter returns the transaction ID as an Integer type.
+     */
+    public Integer id(){
+        return (Integer)tid;
+    }
 }

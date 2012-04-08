@@ -18,6 +18,11 @@ public class Scheduler extends Thread{
     // This is a list of transactions to execute.
 	private TransactionList transactions = null;
 
+    // This is a list of transactions that are currently blocked. This may be
+    // due to operations not being available from the TM or due to an inability
+    // to get a lock.
+    private ArrayList<Integer> blockedTxns;
+
     // This list is used to keep track of which txns still need to commit/abort.
     // TODO: (jmg199) THIS PROBABLY WON"T BE NEEDED. CLEAN UP AFTER TESTING.
     //private ArrayList<Integer> pendingTxnIds = null;
@@ -55,30 +60,39 @@ public class Scheduler extends Thread{
 		}
 
 
-        // Check each transaction in the transaction list.
-        for (int index = 0; index < transactions.size(); ++index){
-            // Add the first operation in the transaction if it exists. Otherwise, add it to the wait queue.
-            if (transactions.get(index).isEmpty()){
-                // TODO: (jmg199) ADD THIS TXN TO THE WAIT QUEUE.
-            }
-            else{
-                Operation firstOp = transactions.get(index).get(0);
-				scheduled_ops.add(firstOp);
+        // TODO: (goldswjm) Start the dead lock poll timer thread.
+
+
+        // Continue working while the transaction list exists.
+		while(transactions != null){
+            // Check each transaction in the transaction list.
+            for (int index = 0; index < transactions.size(); ++index){
+                // Add the first operation in the transaction if it exists.
+                // Otherwise, add it to the blocked queue.
+                if (transactions.get(index).isEmpty()){
+                    // Add this transaction to the blocked queue.
+                    blockedTxns.add(transactions.get(index).id())
+                }
+                else{
+                    Operation nextOp = transactions.get(index).get(0);
+                    scheduled_ops.add(nextOp);
+                }
             }
         }
 
 
         // Continue working while the transaction list exists.
-		while(transactions != null){
-			if(!transactions.get(0).isEmpty()){
-				Operation currOp = transactions.get(0).get(0);
-				transactions.get(0).remove(0);
-				if(currOp.type.equals("B")){
-					continue;
-				}
-				System.out.println("Scheduled this operation: "+currOp.toString());
-				scheduled_ops.add(currOp);
-			}
-		}
+		//while(transactions != null){
+            // TODO: (goldswjm)
+			//if(!transactions.get(0).isEmpty()){
+			//	Operation currOp = transactions.get(0).get(0);
+			//	transactions.get(0).remove(0);
+			//	if(currOp.type.equals("B")){
+			//		continue;
+			//	}
+			//	System.out.println("Scheduled this operation: "+currOp.toString());
+			//	scheduled_ops.add(currOp);
+			//}
+		//}
 	}
 }
