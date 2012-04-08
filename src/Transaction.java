@@ -6,6 +6,12 @@ import java.util.*;
 
 public class Transaction extends ArrayList<Operation> {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -8187588735709506147L;
+
+
 	/*
 	 * TODO I believe we might only need to hold on to the BufferedReader,
 	 *  but since we have the structure already I have left it
@@ -15,8 +21,8 @@ public class Transaction extends ArrayList<Operation> {
 	BufferedReader br;
 	public int tid;
 	public boolean ops_left_in_file;
-	
-	
+
+
 	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid){
 		fis = _fis;
 		dis = _dis;
@@ -24,7 +30,7 @@ public class Transaction extends ArrayList<Operation> {
 		tid = _tid;
 		ops_left_in_file = true;
 	}
-	
+
 	public void end(){
 		try {
 			br.close();
@@ -34,5 +40,5 @@ public class Transaction extends ArrayList<Operation> {
 			e.printStackTrace();
 		}
 	}
-	
+
 }
