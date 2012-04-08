@@ -1,5 +1,8 @@
 import java.util.ArrayList;
-import java.util.Map;
+// TODO: (jmg199) CLEAN UP AFTER TESTING.
+//import java.util.Map;
+import java.util.Date;
+
 
 
 public class Scheduler extends Thread{
@@ -9,30 +12,33 @@ public class Scheduler extends Thread{
     // The type of search method the DM should employ.
 	private String search_method;
 
-	public ArrayList<Operation> current_ops = null;
+    // The list of scheduled operations. The DM is the consumer of this list.
+	public ArrayList<Operation> scheduled_ops = null;
 
     // This is a list of transactions to execute.
-	private ArrayList<Transaction> transactions = null;
+	private TransactionList transactions = null;
 
     // This list is used to keep track of which txns still need to commit/abort.
-    // TODO: (goldswjm) THIS PROBABLY WON"T BE NEEDED.
-    private ArrayList<Integer> pendingTxnIds = null;
+    // TODO: (jmg199) THIS PROBABLY WON"T BE NEEDED. CLEAN UP AFTER TESTING.
+    //private ArrayList<Integer> pendingTxnIds = null;
 
     // Our DM reference.
 	private DataManager dm_task = null;
+
 
     /*
      * @summary
      * This is the class ctor.
      *
-     * @param sourceTransactions - List of transactions to execute.
-     * @param buffer - Initial size of the buffer to provide to the data manager.
+     * @param   _sourceTransactions - List of transactions to execute.
+     * @param   _buffer_size - Initial size of the buffer to provide to the data manager.
+     * @param   _search_method - Search method that the DM should use to find the record.
      */
-	public Scheduler(ArrayList<Transaction> _sourceTransactions, int _buffer_size, String _search_method){
+	public Scheduler(TransactionList _sourceTransactions, int _buffer_size, String _search_method){
 		buffer_size = _buffer_size;
 		search_method = _search_method;
 		transactions = _sourceTransactions;
-		current_ops = new ArrayList<Operation>();
+		scheduled_ops = new ArrayList<Operation>();
 	}
 
 
@@ -41,20 +47,37 @@ public class Scheduler extends Thread{
      * This method is used as the execution loop for the thread.
      */
 	public void run(){
+        // Create the DM if needed.
 		if(dm_task == null){
-			dm_task = new DataManager(current_ops, buffer_size, search_method, this);
+			dm_task = new DataManager(scheduled_ops, buffer_size, search_method, this);
 			System.out.println("Started DataManager...");
 			dm_task.start();
 		}
-		while(!transactions.isEmpty()){
+
+
+        // Check each transaction in the transaction list.
+        for (int index = 0; index < transactions.size(); ++index){
+            // Add the first operation in the transaction if it exists. Otherwise, add it to the wait queue.
+            if (transactions.get(index).isEmpty()){
+                // TODO: (jmg199) ADD THIS TXN TO THE WAIT QUEUE.
+            }
+            else{
+                Operation firstOp = transactions.get(index).get(0);
+				scheduled_ops.add(firstOp);
+            }
+        }
+
+
+        // Continue working while the transaction list exists.
+		while(transactions != null){
 			if(!transactions.get(0).isEmpty()){
-				Operation o = transactions.get(0).get(0);
+				Operation currOp = transactions.get(0).get(0);
 				transactions.get(0).remove(0);
-				if(o.type.equals("B")){
+				if(currOp.type.equals("B")){
 					continue;
 				}
-				System.out.println("Scheduled this operation: "+o.toString());
-				current_ops.add(o);
+				System.out.println("Scheduled this operation: "+currOp.toString());
+				scheduled_ops.add(currOp);
 			}
 		}
 	}
