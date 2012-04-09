@@ -13,6 +13,9 @@ public class DataManager extends Thread {
 
 	public ArrayList<Operation> current_ops = null;
 
+    // List of operations that have been executed.
+	public ArrayList<Operation> completed_ops = null;
+
 	private boolean shutdown_flag=false;
 	private int checkpoint_op_cnt;
 	private int buffer_size;
@@ -23,8 +26,9 @@ public class DataManager extends Thread {
 
 	public ArrayList<DataFile> data_files;
 
-	public DataManager(ArrayList<Operation> _current_op, int _buffer_size, String _search_method, Scheduler s) {
+	public DataManager(ArrayList<Operation> _current_op, ArrayList<Operation> _completed_ops, int _buffer_size, String _search_method, Scheduler s) {
 		current_ops = _current_op;
+        completed_ops = _completed_ops;
 		buffer_size = _buffer_size;
 		next_global_page_id=0;
 		/*
@@ -93,7 +97,7 @@ public class DataManager extends Thread {
 							flushPage(old_p);
 						}
 
-						int i=0;					
+						int i=0;
 						while(df.getPageIDByIndex(i)!= -1){
 							int page_id = df.getPageIDByIndex(i);
 							Page p = loadPage(df, page_id);
@@ -193,9 +197,9 @@ public class DataManager extends Thread {
 				}
 			}
 		}
-		
+
 		// Check the file for the page
-		int i=0;					
+		int i=0;
 		while(df.getPageIDByIndex(i)!= -1){
 			int page_id = df.getPageIDByIndex(i);
 			//Need room in memory for scan
@@ -224,7 +228,7 @@ public class DataManager extends Thread {
 						p.add(j+1,new_r);
 						return next_pid;
 					}
-				}				
+				}
 			}
 			i++;
 		}
@@ -287,11 +291,11 @@ public Page loadPage(DataFile df, int page_id){
 	//			String record = new String(cbuf,i, Page.PAGE_SIZE_BYTES);
 	//			System.out.println("Records in this page:");
 	//			System.out.println(record);
-	//			
+	//
 	//			Byte id = new Byte(cbuf, i, 4);
 	//			String client_name = new String(cbuf, i+4, 4+18);
 	//			String phone = new String(cbuf, i+4+18, 12);
-	//			
+	//
 	//			if(cbuf[i+1]=='\0'){
 	//				return page;
 	//			}

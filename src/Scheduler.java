@@ -15,6 +15,9 @@ public class Scheduler extends Thread{
     // The list of scheduled operations. The DM is the consumer of this list.
 	public ArrayList<Operation> scheduled_ops = null;
 
+    // The list of operations completed by the DM which Sched needs to clean up.
+    public ArrayList<Operation> completed_ops = null;
+
     // This is a list of transactions to execute.
 	private TransactionList transactions = null;
 
@@ -40,10 +43,12 @@ public class Scheduler extends Thread{
      * @param   _search_method - Search method that the DM should use to find the record.
      */
 	public Scheduler(TransactionList _sourceTransactions, int _buffer_size, String _search_method){
+        // Init data memebers.
 		buffer_size = _buffer_size;
 		search_method = _search_method;
 		transactions = _sourceTransactions;
 		scheduled_ops = new ArrayList<Operation>();
+        completed_ops = new ArrayList<Operation>();
 	}
 
 
@@ -54,7 +59,7 @@ public class Scheduler extends Thread{
 	public void run(){
         // Create the DM if needed.
 		if(dm_task == null){
-			dm_task = new DataManager(scheduled_ops, buffer_size, search_method, this);
+			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
 			System.out.println("Started DataManager...");
 			dm_task.start();
 		}
