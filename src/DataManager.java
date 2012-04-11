@@ -59,7 +59,10 @@ public class DataManager extends Thread {
 				if(op.type.equals("A")){
 
 				}else if(op.type.equals("C")){
-
+					//TODO flush only dirty pages?
+					while(!buffer.isEmpty()){
+						flushPage(buffer.get(0));
+					}
 				}else{
 					assert(op.filename!=null);
 					//If the filename is not in pages file list add it
