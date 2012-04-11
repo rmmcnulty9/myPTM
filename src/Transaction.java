@@ -21,6 +21,7 @@ public class Transaction extends ArrayList<Operation> {
 	BufferedReader br;
 	public int tid;
 	public boolean ops_left_in_file;
+    private Date timestamp;
 
 
 	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid){
@@ -29,6 +30,9 @@ public class Transaction extends ArrayList<Operation> {
 		br = _br;
 		tid = _tid;
 		ops_left_in_file = true;
+
+        // Initialize the timestamp to creation date.
+        timestamp = new Date();
 	}
 
 	public void end(){
@@ -49,5 +53,23 @@ public class Transaction extends ArrayList<Operation> {
      */
     public Integer id(){
         return (Integer)tid;
+    }
+
+
+
+    /* @summary
+     * This getter returns the current timestamp.
+     */
+    public Date getTimestamp(){
+        return timestamp;
+    }
+
+
+
+    /* @summary
+     * This sets the transaction's timestamp.
+     */
+    public void setTimestamp(Date sourceTime){
+        timestamp = sourceTime;
     }
 }

@@ -9,7 +9,7 @@ import java.util.Random;
 
 public class TranscationManager extends Thread{
 
-	public ArrayList<Transaction> transactions = new ArrayList<Transaction>();
+	public TransactionList transactions = new TransactionList();
 
 	private int MAX_OPS_TO_READ = 10;
 	private boolean random_read = false;
@@ -17,20 +17,21 @@ public class TranscationManager extends Thread{
 	private Random rgen = null;
 	private int buffer_size;
 	private String search_method;
+    private boolean schedExitFlag = false;
 
 	private Scheduler scheduler = null;
 
 	public void run(){
 		if(scheduler==null){
-			scheduler = new Scheduler(transactions, buffer_size, search_method);
+			scheduler = new Scheduler(this, transactions, buffer_size, search_method);
 			System.out.println("Started Scheduler...");
 			scheduler.start();
 		}
-		
+
 		int next_index=0;
 
 		while(!transactions.isEmpty()){
-			
+
 			if(rr_read){
 
 				String op = null;
@@ -76,12 +77,12 @@ public class TranscationManager extends Thread{
 		System.out.println("[TM] No more operations.");
 	}
 
-	public TranscationManager(String read_method, int _buffer_size, 
+	public TranscationManager(String read_method, int _buffer_size,
 			String _search_method, ArrayList<String> file_list){
 
 		search_method = _search_method;
 		buffer_size = _buffer_size;
-		
+
 		//Create transactions, one for each file
 		for(int i=0;i<file_list.size();i++){
 			try{
@@ -114,7 +115,17 @@ public class TranscationManager extends Thread{
 	}
 
 
-	
+
+    /* @summary
+     * This method sets the scheduler exit flag which indicates that it has
+     * exited and it is now safe for the TM to exit.
+     */
+    public void setSchedExitFlag(){
+        schedExitFlag = true;
+    }
+
+
+
 	public Transaction getByTID(int tid){
 		for(int i=0;i<transactions.size();i++){
 			if(transactions.get(i).tid == tid){
@@ -123,7 +134,7 @@ public class TranscationManager extends Thread{
 		}
 		return null;
 	}
-	
+
 	public Transaction getByIndex(int index){
 		if(index>=transactions.size()){
 			return null;
@@ -140,7 +151,7 @@ public class TranscationManager extends Thread{
 		}
 		return false;
 	}
-	
+
 	public boolean isOpLeftInFile(int tid){
 		for(int i=0;i<transactions.size();i++){
 			if(transactions.get(i).tid == tid){
@@ -149,9 +160,9 @@ public class TranscationManager extends Thread{
 		}
 		return false;
 	}
-	
+
 //	Not needed anymore - done in Scheduler
-//	
+//
 //	public boolean removeByTID(int tid){
 //		for(int i=0;i<transactions.size();i++){
 //			if(transactions.get(i).tid == tid){

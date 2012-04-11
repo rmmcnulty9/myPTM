@@ -236,6 +236,17 @@ public class DataManager extends Thread {
 	return next_pid;
 }
 
+
+
+    /* @summary
+     * This method sets the shutdown flag.
+     */
+    public void setSchedDoneFlag(){
+        shutdown_flag = true;
+    }
+
+
+
 private int splitPage(DataFile df, Page p, Record r, int next_pid, int i) {
 	Page new_p = new Page(df.filename, next_pid);
 	//Move all records from the one larger than the new record on to the new page

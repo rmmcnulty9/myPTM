@@ -1,7 +1,8 @@
 import java.util.ArrayList;
-// TODO: (jmg199) CLEAN UP AFTER TESTING.
-//import java.util.Map;
 import java.util.Date;
+
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
 
 
 
@@ -21,10 +22,15 @@ public class Scheduler extends Thread{
     // This is a list of transactions to execute.
 	private TransactionList transactions = null;
 
-    // This is a list of transactions that are currently blocked. This may be
-    // due to operations not being available from the TM or due to an inability
-    // to get a lock.
-    private ArrayList<Integer> blockedTxns;
+    // This is a list of transactions that are currently stalled. This is
+    // due to operations not being available from the TM.
+    private TransactionList stalledTxns = null;
+
+    // TODO: (jmg199) NEED A DEAD LOCK QUEUE OF SOME SORT. NOT SURE WHAT THIS WILL BE YET.
+    // **** NEED TO THINK ABOUT HOW THE SCHEDULED OPS LIST CAN GET FILLED AS FAST AS POSSIBLE
+    //      (POSSIBLY HAVING MORE THAN ONE OP FROM THE SAME TXN QUEUED UP, BUT STILL BE ABLE
+    //      TO DETECT DEAD LOCKS.
+    private TransactionList deadlockList = null;
 
     // This list is used to keep track of which txns still need to commit/abort.
     // TODO: (jmg199) THIS PROBABLY WON"T BE NEEDED. CLEAN UP AFTER TESTING.
@@ -32,6 +38,15 @@ public class Scheduler extends Thread{
 
     // Our DM reference.
 	private DataManager dm_task = null;
+
+    // Our TM reference.
+    private TranscationManager tm_task = null;
+
+    // Flag indicating when the TM has completed its work.
+    private boolean txnMgrDoneFlag = false;
+
+    // Flag indicating when the DM has completed its work.
+    private boolean dataMgrExitFlag = false;
 
 
     /*
@@ -42,13 +57,18 @@ public class Scheduler extends Thread{
      * @param   _buffer_size - Initial size of the buffer to provide to the data manager.
      * @param   _search_method - Search method that the DM should use to find the record.
      */
-	public Scheduler(TransactionList _sourceTransactions, int _buffer_size, String _search_method){
+	public Scheduler(TranscationManager tm, TransactionList _sourceTransactions, int _buffer_size, String _search_method){
         // Init data memebers.
 		buffer_size = _buffer_size;
 		search_method = _search_method;
 		transactions = _sourceTransactions;
 		scheduled_ops = new ArrayList<Operation>();
         completed_ops = new ArrayList<Operation>();
+        stalledTxns = new TransactionList();
+        deadlockList = new TransactionList();
+        txnMgrDoneFlag = false;
+        dataMgrExitFlag = false;
+        tm_task = tm;
 	}
 
 
@@ -65,30 +85,23 @@ public class Scheduler extends Thread{
 		}
 
 
-        // TODO: (goldswjm) Start the dead lock poll timer thread.
+        // TODO: (jmg199) Start the dead lock poll timer thread.
 
 
-        // Continue working while the transaction list exists.
-		while(transactions != null){
-            // Check each transaction in the transaction list.
-            for (int index = 0; index < transactions.size(); ++index){
-                // Add the first operation in the transaction if it exists.
-                // Otherwise, add it to the blocked queue.
-                if (transactions.get(index).isEmpty()){
-                    // Add this transaction to the blocked queue.
-                    blockedTxns.add(transactions.get(index).id())
-                }
-                else{
-                    Operation nextOp = transactions.get(index).get(0);
-                    scheduled_ops.add(nextOp);
-                }
-            }
+        // Check each transaction in the transaction list and try to schedule
+        // the first operation for each.
+        for (int index = 0; index < transactions.size(); ++index){
+            scheduleNextOp(transactions.get(index));
         }
 
 
-        // Continue working while the transaction list exists.
-		//while(transactions != null){
-            // TODO: (goldswjm)
+        // Continue working until the TM is done, and there are no more operations to execute.
+		while(!txnMgrDoneFlag && !transactions.isEmpty()){
+            scheduleStalledTxns();
+
+            processCompletedOps();
+
+            // TODO: (jmg199) CLEAN UP AFTER TESTING.
 			//if(!transactions.get(0).isEmpty()){
 			//	Operation currOp = transactions.get(0).get(0);
 			//	transactions.get(0).remove(0);
@@ -98,6 +111,152 @@ public class Scheduler extends Thread{
 			//	System.out.println("Scheduled this operation: "+currOp.toString());
 			//	scheduled_ops.add(currOp);
 			//}
-		//}
+		}
+
+        dm_task.setSchedDoneFlag();
+
+        while (!dataMgrExitFlag)
+        {
+            // Check every 1/4 sec. to see if DM is done.
+            try {
+				sleep(250);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+
+        // Notify the transaction manager that the scheduler is exiting.
+        tm_task.setSchedExitFlag();
 	}
+
+
+
+    /* @summary
+     * This method schedules the next operation for the specified transaction.
+     * If there is no operation in its queue to be scheduled then it is put in
+     * the stalled transaction queue.
+     */
+    private void scheduleNextOp(Transaction sourceTxn){
+        // Add the first operation in the transaction if it exists.
+        // Otherwise, add it to the blocked queue.
+        if (sourceTxn.isEmpty()){
+            // Add this transaction to the blocked queue.
+            stalledTxns.add(sourceTxn);
+        }
+        else{
+            Operation nextOp = sourceTxn.get(0);
+
+            // TODO: (jmg199) UPDATE THE TIMESTAMP!!!!
+            deadlockList.add(sourceTxn);
+
+            // TODO: (jmg199) Inspect the operation and see if we can get a lock for it.
+            // if (getLock(nextOp)){
+            scheduled_ops.add(nextOp);
+            //}
+        }
+    }
+
+
+
+    /* @summary
+     * This method attempts to schedule operations for transactions that have stalled.
+     */
+    private void scheduleStalledTxns(){
+        // List to store the transactions that need to be removed.
+        ArrayList<Integer> restartedTxnIndexes = new ArrayList<Integer>();
+
+        // Traverse the stalled transactions list and see if ops now exist to be scheduled.
+        for (int index = 0; index < stalledTxns.size(); ++index){
+            if (!stalledTxns.get(index).isEmpty()){
+                // Now that there is an op, schedule it and mark it for removal from the stalled queue.
+                scheduleNextOp(stalledTxns.get(index));
+                restartedTxnIndexes.add((Integer)(index));
+            }
+        }
+
+        // Now that the entire stalled transactions list has been traversed
+        // remove the transactions that were restarted.
+        for (int index = 0; index < restartedTxnIndexes.size(); ++index){
+            stalledTxns.remove(restartedTxnIndexes.get(index));
+        }
+    }
+
+
+
+    /* @summary
+     * This method sets the transaction manager done flag which indicates that the
+     * transaction manager has completed its work and is waiting to shutdown.
+     */
+    public void setTMDoneFlag(){
+        txnMgrDoneFlag = true;
+    }
+
+
+
+    /* @summary
+     * This method sets the data manager exit flag which indicates that the
+     * data manager has completed its work and has exited.
+     */
+    public void setDMExitFlag(){
+        dataMgrExitFlag = true;
+    }
+
+
+
+    /* @summary
+     * This method handles the clean up after the DM completes an operation.
+     */
+    private void processCompletedOps(){
+        Operation currOp = null;
+
+        for (int index = 0; index < completed_ops.size(); ++index){
+            currOp = completed_ops.get(index);
+
+            Transaction parentTxn = transactions.getByTID(currOp.tid);
+            // TODO: (jmg199) REMOVE THE PARENT TRANSACTION FROM THE DEADLOCK QUEUE. (OR UPDATE THE TIMESTAMP IN THE QUEUE).
+
+            if ((currOp.type == "C") || (currOp.type == "A")){
+                // This transaction has committed or aborted, so remove it from the transaction list.
+                if (!transactions.remove(parentTxn)){
+                    System.out.println("DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
+                }
+            }
+            else {
+                // Remove the operation from the transaction's operation list.
+                parentTxn.remove(currOp);
+                scheduleNextOp(parentTxn);
+            }
+        }
+    }
+
+
+
+    /* @summary
+     * This method is used to check for dead lock conditions.
+     */
+    public void deadlockCheck(){
+        // Create the reference date.
+        Date now = new Date();
+
+        // Traverse the deadlock queue looking for any overrun transactions.
+        for (int index = 0; index < deadlockList.size(); ++index){
+            deadlockList.get(index).getTimestamp();
+
+            // TODO: (jmg199) VARIABLE TO MAKE THIS COMPILE. REPLACE TEST WITH DEADLOCK THRESHOLD TEST.
+            boolean dummy = true;
+            if (dummy == false){
+                resolveDeadlock(deadlockList.get(index));
+            }
+        }
+    }
+
+
+
+    /* @summary
+     * This method is used to resolve deadlocks.
+     */
+    private void resolveDeadlock(Transaction targetTxn){
+        // TODO: (jmg199) IMPLEMENT WOUND-WAIT.
+    }
 }
