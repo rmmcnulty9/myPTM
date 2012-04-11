@@ -6,6 +6,12 @@ import java.util.*;
 
 public class Transaction extends ArrayList<Operation> {
 
+	/**
+	 *
+	 */
+	private static final long serialVersionUID = -8187588735709506147L;
+
+
 	/*
 	 * TODO I believe we might only need to hold on to the BufferedReader,
 	 *  but since we have the structure already I have left it
@@ -15,16 +21,20 @@ public class Transaction extends ArrayList<Operation> {
 	BufferedReader br;
 	public int tid;
 	public boolean ops_left_in_file;
-	
-	
+    private Date timestamp;
+
+
 	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid){
 		fis = _fis;
 		dis = _dis;
 		br = _br;
 		tid = _tid;
 		ops_left_in_file = true;
+
+        // Initialize the timestamp to creation date.
+        timestamp = new Date();
 	}
-	
+
 	public void end(){
 		try {
 			br.close();
@@ -34,5 +44,32 @@ public class Transaction extends ArrayList<Operation> {
 			e.printStackTrace();
 		}
 	}
-	
+
+
+
+    /*
+     * @summary
+     * This getter returns the transaction ID as an Integer type.
+     */
+    public Integer id(){
+        return (Integer)tid;
+    }
+
+
+
+    /* @summary
+     * This getter returns the current timestamp.
+     */
+    public Date getTimestamp(){
+        return timestamp;
+    }
+
+
+
+    /* @summary
+     * This sets the transaction's timestamp.
+     */
+    public void setTimestamp(Date sourceTime){
+        timestamp = sourceTime;
+    }
 }
