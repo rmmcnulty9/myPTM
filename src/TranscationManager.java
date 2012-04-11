@@ -74,7 +74,8 @@ public class TranscationManager extends Thread{
 				}
 			}
 		}
-		System.out.println("[TM] No more operations.");
+		System.out.println("[TM] No more operations.Setting scheduler's exit flag.");
+		setSchedExitFlag();
 	}
 
 	public TranscationManager(String read_method, int _buffer_size,
