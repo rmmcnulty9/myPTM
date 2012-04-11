@@ -18,7 +18,12 @@ public class DataManager extends Thread {
 	private Journal journal;
 	private int buffer_mgmt_table[][];
 	private ArrayList<Page> buffer;
+    // Flag indicating when the TM has completed its work.
+    private boolean schedDoneFlag = false;
 
+    private Scheduler scheduler;
+    
+    
 	public ArrayList<DataFile> data_files;
 
 	public DataManager(ArrayList<Operation> _current_op, ArrayList<Operation> _completed_ops, int _buffer_size, String _search_method, Scheduler s) {
@@ -26,6 +31,8 @@ public class DataManager extends Thread {
         completed_ops = _completed_ops;
 		buffer_size = _buffer_size;
 		next_global_page_id=0;
+		schedDoneFlag = false;
+		scheduler  = s;
 		/*
 		 * Buffer Management table has(in order):
 		 * 	block ID, dirty bit, fix count, page LSN, Stable-LSN and page number
@@ -48,7 +55,8 @@ public class DataManager extends Thread {
 		/*
 		 * TODO run as long as there are operations. This needs to be changed
 		 */
-		while(!current_ops.isEmpty()){
+		while(!schedDoneFlag || !current_ops.isEmpty()){
+			
 			if(!current_ops.isEmpty()){
 				Operation op = current_ops.get(0);
 				current_ops.remove(0);
@@ -120,7 +128,7 @@ public class DataManager extends Thread {
 						System.out.println("Scan Method: Writing...");
 						DataFile df = getDataFile(op.filename);
 						next_global_page_id = addRecordToFile(op.record, df, next_global_page_id);
-
+						System.out.println(op);
 
 					}else if(op.type.equals("D")){
 
@@ -155,8 +163,13 @@ public class DataManager extends Thread {
 					System.exit(0);
 				}
 
+				//Add the completed op to the completeed_op list
+				completed_ops.add(op);
 			}
 		}
+		
+		scheduler.setDMExitFlag();
+		
 	}
 
 	private int addRecordToFile(Record new_r, DataFile df, int next_pid) {
@@ -178,7 +191,7 @@ public class DataManager extends Thread {
 		for(int j=0;j<buffer.size();j++){
 			Page p = buffer.get(j);
 			for(int k=0;k<p.size();k++){
-				Record r = p.get(j);
+				Record r = p.get(k);
 				//If record is present
 				if(r.ID == new_r.ID){
 					p.remove(k);
@@ -240,7 +253,7 @@ public class DataManager extends Thread {
      * This method sets the shutdown flag.
      */
     public void setSchedDoneFlag(){
-        shutdown_flag = true;
+        schedDoneFlag = true;
     }
 
 
