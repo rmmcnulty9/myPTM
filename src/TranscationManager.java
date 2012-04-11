@@ -74,7 +74,7 @@ public class TranscationManager extends Thread{
 				}
 			}
 		}
-		System.out.println("[TM] No more operations.Setting scheduler's exit flag.");
+		System.out.println("[TM] No more operations. Setting scheduler's exit flag.");
 		setSchedExitFlag();
 	}
 
