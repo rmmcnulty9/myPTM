@@ -80,12 +80,13 @@ public class Scheduler extends Thread{
         // Create the DM if needed.
 		if(dm_task == null){
 			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
-			System.out.println("Started DataManager...");
+			System.out.println("[Sched] Started DataManager...");
 			dm_task.start();
 		}
 
 
-        // TODO: (jmg199) Start the dead lock poll timer thread.
+        // Start the dead lock poll timer thread.
+        new PollTimer(500, this);
 
 
         // Check each transaction in the transaction list and try to schedule
@@ -148,7 +149,7 @@ public class Scheduler extends Thread{
             Operation nextOp = sourceTxn.get(0);
             // TODO: (jmg199) UPDATE THE TIMESTAMP!!!!
             //TODO: (rmmcnulty9) I assumed this isn't done. I got an outofmemoryerror here
-//            deadlockList.add(sourceTxn);
+            deadlockList.add(sourceTxn);
 
             // TODO: (jmg199) Inspect the operation and see if we can get a lock for it.
             // if (getLock(nextOp)){
@@ -217,19 +218,19 @@ public class Scheduler extends Thread{
 
             // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.
             if (!deadlockList.remove(parentTxn)){
-                System.out.println("DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
+                System.out.println("[Sched] DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
             }
 
             if ((currOp.type == "C") || (currOp.type == "A")){
                 // This transaction has committed or aborted, so remove it from the transaction list.
                 if (!transactions.remove(parentTxn)){
-                    System.out.println("DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
+                    System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
                 }
             }
             else {
                 // Remove the operation from the transaction's operation list.
                 if (!parentTxn.remove(currOp)){
-                    System.out.println("DID NOT REMOVE THE CURRENT OPERATION FROM THE PARENT TXN!");
+                    System.out.println("[Sched] DID NOT REMOVE THE CURRENT OPERATION FROM THE PARENT TXN!");
                 }
 
                 // Schedule the next operation in the parentTxn.
@@ -244,19 +245,24 @@ public class Scheduler extends Thread{
      * This method is used to check for dead lock conditions.
      */
     public void deadlockCheck(){
+        // TODO: (goldswjm) REMOVE AFTER TESTING.
+        System.out.println("[Sched] Made it back from the timer!");
+
+        //new PollTimer(500, this);
+
         // Create the reference date.
-        Date now = new Date();
+        //Date now = new Date();
 
-        // Traverse the deadlock queue looking for any overrun transactions.
-        for (int index = 0; index < deadlockList.size(); ++index){
-            deadlockList.get(index).getTimestamp();
+        //// Traverse the deadlock queue looking for any overrun transactions.
+        //for (int index = 0; index < deadlockList.size(); ++index){
+        //    deadlockList.get(index).getTimestamp();
 
-            // TODO: (jmg199) VARIABLE TO MAKE THIS COMPILE. REPLACE TEST WITH DEADLOCK THRESHOLD TEST.
-            boolean dummy = true;
-            if (dummy == false){
-                resolveDeadlock(deadlockList.get(index));
-            }
-        }
+        //    // TODO: (jmg199) VARIABLE TO MAKE THIS COMPILE. REPLACE TEST WITH DEADLOCK THRESHOLD TEST.
+        //    boolean dummy = true;
+        //    if (dummy == false){
+        //        resolveDeadlock(deadlockList.get(index));
+        //    }
+        //}
     }
 
 
