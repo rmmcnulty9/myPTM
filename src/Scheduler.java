@@ -210,13 +210,15 @@ public class Scheduler extends Thread{
     private void processCompletedOps(){
         Operation currOp = null;
 
-//        for (int index = 0; index < completed_ops.size(); ++index){
-//            currOp = completed_ops.get(index);
         while(!completed_ops.isEmpty()){
         	currOp = completed_ops.remove(0);
-        	
+
             Transaction parentTxn = transactions.getByTID(currOp.tid);
-            // TODO: (jmg199) REMOVE THE PARENT TRANSACTION FROM THE DEADLOCK QUEUE. (OR UPDATE THE TIMESTAMP IN THE QUEUE).
+
+            // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.
+            if (!deadlockList.remove(parentTxn)){
+                System.out.println("DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
+            }
 
             if ((currOp.type == "C") || (currOp.type == "A")){
                 // This transaction has committed or aborted, so remove it from the transaction list.
@@ -226,7 +228,11 @@ public class Scheduler extends Thread{
             }
             else {
                 // Remove the operation from the transaction's operation list.
-                parentTxn.remove(currOp);
+                if (!parentTxn.remove(currOp)){
+                    System.out.println("DID NOT REMOVE THE CURRENT OPERATION FROM THE PARENT TXN!");
+                }
+
+                // Schedule the next operation in the parentTxn.
                 scheduleNextOp(parentTxn);
             }
         }
