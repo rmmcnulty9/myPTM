@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 
 public class DataManager extends Thread {
+
 	public static int next_global_page_id;
 
 	public ArrayList<Operation> current_ops = null;
@@ -11,7 +12,10 @@ public class DataManager extends Thread {
     // List of operations that have been executed.
 	public ArrayList<Operation> completed_ops = null;
 
-	private boolean shutdown_flag=false;
+	private int write_count=0;
+	private int read_count=0;
+	private int delete_count=0;
+	
 	private int checkpoint_op_cnt;
 	private int buffer_size;
 	private String search_method;
@@ -58,10 +62,11 @@ public class DataManager extends Thread {
 		while(!schedDoneFlag || !current_ops.isEmpty()){
 			
 			if(!current_ops.isEmpty()){
-				Operation op = current_ops.get(0);
-				current_ops.remove(0);
-
-				//TODO I think B(Begin) is processed by the Scheduler, I don't think it's needed in here
+				Operation op = current_ops.remove(0);
+				if(op == null){
+					System.out.println("Operations is null??");
+					System.exit(0);
+				}
 
 				if(op.type.equals("A")){
 
@@ -82,8 +87,8 @@ public class DataManager extends Thread {
 				if(search_method.equals("scan")){
 
 					if(op.type.equals("R")){
-
-						System.out.println("Scan Method: Reading...");
+						read_count++;
+						System.out.println("Scan Method: Reading "+read_count+"...");
 						DataFile df = getDataFile(op.filename);
 
 						//First check the buffer for desired page
@@ -124,17 +129,18 @@ public class DataManager extends Thread {
 
 
 					}else if(op.type.equals("W")){
-
-						System.out.println("Scan Method: Writing...");
+						write_count++;
+						System.out.println("Scan Method: Writing "+write_count+"...");
 						DataFile df = getDataFile(op.filename);
 						next_global_page_id = addRecordToFile(op.record, df, next_global_page_id);
 						System.out.println(op);
 
 					}else if(op.type.equals("D")){
-
-						System.out.println("Scan Method: Delete...");
+						delete_count++;
+						System.out.println("Scan Method: Delete "+delete_count+"...");
 						DataFile df = getDataFile(op.filename);
 						df.close();
+						//TODO back up the DataFile in case of abort
 						df.delete();
 						data_files.remove(df);
 					}
@@ -176,7 +182,9 @@ public class DataManager extends Thread {
 		//If dataFile is empty add page
 		if(df.isEmpty()){
 			Page p = new Page(df.filename,next_pid);
-			p.add(0,new_r);
+			if(!p.add(new_r)){
+				System.out.println("Can not add to this page!");
+			}
 			df.addPageID(next_pid);
 			if(buffer.size() == buffer_size){
 				//TODO replace
@@ -184,7 +192,7 @@ public class DataManager extends Thread {
 				flushPage(old_p);
 			}
 			buffer.add(p);
-			return next_pid+1;
+			return (next_pid+1);
 		}
 
 		//Check buffer from page this belongs to
@@ -195,15 +203,25 @@ public class DataManager extends Thread {
 				//If record is present
 				if(r.ID == new_r.ID){
 					p.remove(k);
-					p.add(k, new_r);
-				}else if(p.isFull()){
+					if(!p.addAtIndex(k, new_r)){
+						System.out.println("Can not add to this page!");
+						return splitPage(df, p, new_r,next_pid, k);
+					}
+					return next_pid;
+				}else if(j==(buffer.size()-1) && p.isFull()){
 					//Split the Page & shift
 					return splitPage(df,p,new_r,next_pid,k);
 				}else if(r.ID>new_r.ID){
-					p.add(k,new_r);
+					if(!p.addAtIndex(k,new_r)){
+						System.out.println("Can not add to this page!");
+						return splitPage(df, p, new_r,next_pid, k);
+					}
 					return next_pid;
 				}else if (k==(p.size()-1)){
-					p.add(k+1,new_r);
+					if(!p.addAtIndex(k+1,new_r)){
+						System.out.println("Can not add to this page!");
+						return splitPage(df, p, new_r,next_pid, k);
+					}
 					return next_pid;
 				}
 			}
@@ -223,20 +241,30 @@ public class DataManager extends Thread {
 			if(p==null){
 				System.out.println("Page not found!");
 			}else{
-				for(int j=0;j<p.size();j++){
-					Record r = p.get(j);
+				for(int k=0;k<p.size();k++){
+					Record r = p.get(k);
 					//If record is present
 					if(r.ID == new_r.ID){
-						p.remove(j);
-						p.add(j, new_r);
-					}else if(p.isFull()){
-						//Split the Page & shift
-						return splitPage(df,p,new_r,next_pid,j);
-					}else if(r.ID>new_r.ID){
-						p.add(j,new_r);
+						p.remove(k);
+						if(!p.addAtIndex(k, new_r)){
+							System.out.println("Can not add to this page!");
+							return splitPage(df, p, new_r,next_pid, k);
+						}
 						return next_pid;
-					}else if (j==(p.size()-1)){
-						p.add(j+1,new_r);
+					}else if(df.getPageIDByID(i+1)==-1 && p.isFull()){
+						//Split the Page & shift
+						return splitPage(df,p,new_r,next_pid,k);
+					}else if(r.ID>new_r.ID){
+						if(!p.addAtIndex(k,new_r)){
+							System.out.println("Can not add to this page!");
+							return splitPage(df, p, new_r,next_pid, k);
+						}
+						return next_pid;
+					}else if (k==(p.size()-1)){
+						if(!p.addAtIndex(k+1,new_r)){
+							System.out.println("Can not add to this page!");
+							return splitPage(df, p, new_r,next_pid, k);
+						}
 						return next_pid;
 					}
 				}
@@ -262,10 +290,14 @@ private int splitPage(DataFile df, Page p, Record r, int next_pid, int i) {
 	Page new_p = new Page(df.filename, next_pid);
 	//Move all records from the one larger than the new record on to the new page
 	while(p.size()!=i){
-		new_p.add(p.remove(i));
+		if(!new_p.add(p.remove(i))){
+			System.out.println("Can not add to this page!");
+		}
 	}
 	//Add the new record
-	p.add(r);
+	if(!p.add(r)){
+		System.out.println("Can not add to this page!");
+	}
 	//Add page t buffer and DataFile
 	if(buffer.size() == buffer_size){
 		//TODO replace
@@ -336,6 +368,7 @@ public boolean flushPage(Page page){
 		df.outputStream.flush();
 	} catch (IOException e) {
 		e.printStackTrace();
+		System.exit(0);
 	}
 
 	return false;
@@ -374,7 +407,25 @@ private class Page extends ArrayList<Record> implements java.io.Serializable{
 		return null;
 	}
 
-
+	@Override
+	public boolean add(Record r){
+		if(r==null){
+			System.out.println("null!!!");
+		}
+		if ((this.size()+1)> RECORDS_PER_PAGE) return false;
+		return super.add(r);
+	}
+	
+	
+	public boolean addAtIndex(int i, Record r){
+		if(r==null){
+			System.out.println("null!!!");
+		}
+		if ((this.size()+1)> RECORDS_PER_PAGE) return false;
+		super.add(i,r);
+		return true;
+	}
+	
 	public String toString(){
 		String s="Page "+page_id+"\n";
 		for(int i=0;i<RECORDS_PER_PAGE;i++){

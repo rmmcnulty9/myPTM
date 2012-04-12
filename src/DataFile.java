@@ -1,4 +1,3 @@
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -9,7 +8,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 
-public class DataFile {
+public class DataFile{
 	public String filename;
 	public ObjectInputStream inputStream;
 	public ObjectOutputStream outputStream;
@@ -24,6 +23,7 @@ public class DataFile {
 			f.createNewFile();
 		} catch (IOException e1) {
 			e1.printStackTrace();
+			System.exit(0);
 		}
 		try {
 			fos = new FileOutputStream(f);
@@ -68,7 +68,7 @@ public class DataFile {
 	public boolean isEmpty(){
 		return page_ids.size()==0;
 	}
-
+	
 	public boolean delete(){
 		File f = new File("filename");
 		return f.delete();

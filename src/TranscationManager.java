@@ -102,12 +102,10 @@ public class TranscationManager extends Thread{
 				DataInputStream in = new DataInputStream(fis);
 				BufferedReader br = new BufferedReader(new InputStreamReader(in));
 				String strLine;
-				//Read File Line By Line
-//				while ((strLine = br.readLine()) != null)   {
-//					// Print the content on the console
-//					System.out.println (strLine);
-//				}
-				transactions.add(new Transaction(fis, in, br, i));
+				//Read The initial flag B
+				String flag = br.readLine();
+				int mode = Integer.parseInt(flag.substring(2));
+				transactions.add(new Transaction(fis, in, br, i, mode));
 			}catch(IOException e){
 				e.printStackTrace();
 				System.exit(0);

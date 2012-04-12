@@ -146,11 +146,6 @@ public class Scheduler extends Thread{
         }
         else{
             Operation nextOp = sourceTxn.get(0);
-            //TODO (rmmmcnulty9) if nextOp.type == "B" then run as process or transactions mode
-            if(nextOp.type.equals("B")){
-            	sourceTxn.remove(0);
-            	nextOp = sourceTxn.get(0);
-            }
             // TODO: (jmg199) UPDATE THE TIMESTAMP!!!!
             //TODO: (rmmcnulty9) I assumed this isn't done. I got an outofmemoryerror here
 //            deadlockList.add(sourceTxn);
@@ -219,7 +214,7 @@ public class Scheduler extends Thread{
 //            currOp = completed_ops.get(index);
         while(!completed_ops.isEmpty()){
         	currOp = completed_ops.remove(0);
-        
+        	
             Transaction parentTxn = transactions.getByTID(currOp.tid);
             // TODO: (jmg199) REMOVE THE PARENT TRANSACTION FROM THE DEADLOCK QUEUE. (OR UPDATE THE TIMESTAMP IN THE QUEUE).
 
