@@ -20,16 +20,18 @@ public class Transaction extends ArrayList<Operation> {
 	DataInputStream dis;
 	BufferedReader br;
 	public int tid;
+	public int mode;
 	public boolean ops_left_in_file;
     private Date timestamp;
 
 
-	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid){
+	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid, int _mode){
 		fis = _fis;
 		dis = _dis;
 		br = _br;
 		tid = _tid;
 		ops_left_in_file = true;
+		mode = _mode;
 
         // Initialize the timestamp to creation date.
         timestamp = new Date();

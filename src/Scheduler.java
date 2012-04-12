@@ -146,17 +146,9 @@ public class Scheduler extends Thread{
         }
         else{
             Operation nextOp = sourceTxn.get(0);
-
-            //TODO: (jmg199) This was moved to the TM and the Txn/Process mode will be set there.
-            //TODO (rmmmcnulty9) if nextOp.type == "B" then run as process or transactions mode
-            //if(nextOp.type.equals("B")){
-            //	sourceTxn.remove(0);
-            //	nextOp = sourceTxn.get(0);
-            //}
-
             // TODO: (jmg199) UPDATE THE TIMESTAMP!!!!
             //TODO: (rmmcnulty9) I assumed this isn't done. I got an outofmemoryerror here
-            //deadlockList.add(sourceTxn);
+//            deadlockList.add(sourceTxn);
 
             // TODO: (jmg199) Inspect the operation and see if we can get a lock for it.
             // if (getLock(nextOp)){
