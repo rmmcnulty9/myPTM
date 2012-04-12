@@ -214,7 +214,11 @@ public class Scheduler extends Thread{
             currOp = completed_ops.get(index);
 
             Transaction parentTxn = transactions.getByTID(currOp.tid);
-            // TODO: (jmg199) REMOVE THE PARENT TRANSACTION FROM THE DEADLOCK QUEUE. (OR UPDATE THE TIMESTAMP IN THE QUEUE).
+
+            // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.
+            if (!deadlockList.remove(parentTxn)){
+                System.out.println("DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE DEADLOCK LIST!");
+            }
 
             if ((currOp.type == "C") || (currOp.type == "A")){
                 // This transaction has committed or aborted, so remove it from the transaction list.
