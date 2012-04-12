@@ -146,14 +146,17 @@ public class Scheduler extends Thread{
         }
         else{
             Operation nextOp = sourceTxn.get(0);
+
+            //TODO: (jmg199) This was moved to the TM and the Txn/Process mode will be set there.
             //TODO (rmmmcnulty9) if nextOp.type == "B" then run as process or transactions mode
-            if(nextOp.type.equals("B")){
-            	sourceTxn.remove(0);
-            	nextOp = sourceTxn.get(0);
-            }
+            //if(nextOp.type.equals("B")){
+            //	sourceTxn.remove(0);
+            //	nextOp = sourceTxn.get(0);
+            //}
+
             // TODO: (jmg199) UPDATE THE TIMESTAMP!!!!
             //TODO: (rmmcnulty9) I assumed this isn't done. I got an outofmemoryerror here
-//            deadlockList.add(sourceTxn);
+            //deadlockList.add(sourceTxn);
 
             // TODO: (jmg199) Inspect the operation and see if we can get a lock for it.
             // if (getLock(nextOp)){
@@ -215,16 +218,14 @@ public class Scheduler extends Thread{
     private void processCompletedOps(){
         Operation currOp = null;
 
-//        for (int index = 0; index < completed_ops.size(); ++index){
-//            currOp = completed_ops.get(index);
         while(!completed_ops.isEmpty()){
         	currOp = completed_ops.remove(0);
-        
+
             Transaction parentTxn = transactions.getByTID(currOp.tid);
 
             // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.
             if (!deadlockList.remove(parentTxn)){
-                System.out.println("DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE DEADLOCK LIST!");
+                System.out.println("DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
             }
 
             if ((currOp.type == "C") || (currOp.type == "A")){
@@ -235,7 +236,11 @@ public class Scheduler extends Thread{
             }
             else {
                 // Remove the operation from the transaction's operation list.
-                parentTxn.remove(currOp);
+                if (!parentTxn.remove(currOp)){
+                    System.out.println("DID NOT REMOVE THE CURRENT OPERATION FROM THE PARENT TXN!");
+                }
+
+                // Schedule the next operation in the parentTxn.
                 scheduleNextOp(parentTxn);
             }
         }
