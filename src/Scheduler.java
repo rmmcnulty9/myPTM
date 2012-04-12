@@ -1,8 +1,8 @@
 import java.util.ArrayList;
 import java.util.Date;
 
-import org.joda.time.DateTime;
-import org.joda.time.Instant;
+//import org.joda.time.DateTime;
+//import org.joda.time.Instant;
 
 
 
@@ -96,7 +96,7 @@ public class Scheduler extends Thread{
 
 
         // Continue working until the TM is done, and there are no more operations to execute.
-		while(!txnMgrDoneFlag && !transactions.isEmpty()){
+		while(!txnMgrDoneFlag || !transactions.isEmpty()){
             scheduleStalledTxns();
 
             processCompletedOps();
@@ -146,9 +146,14 @@ public class Scheduler extends Thread{
         }
         else{
             Operation nextOp = sourceTxn.get(0);
-
+            //TODO (rmmmcnulty9) if nextOp.type == "B" then run as process or transactions mode
+            if(nextOp.type.equals("B")){
+            	sourceTxn.remove(0);
+            	nextOp = sourceTxn.get(0);
+            }
             // TODO: (jmg199) UPDATE THE TIMESTAMP!!!!
-            deadlockList.add(sourceTxn);
+            //TODO: (rmmcnulty9) I assumed this isn't done. I got an outofmemoryerror here
+//            deadlockList.add(sourceTxn);
 
             // TODO: (jmg199) Inspect the operation and see if we can get a lock for it.
             // if (getLock(nextOp)){
@@ -210,9 +215,11 @@ public class Scheduler extends Thread{
     private void processCompletedOps(){
         Operation currOp = null;
 
-        for (int index = 0; index < completed_ops.size(); ++index){
-            currOp = completed_ops.get(index);
-
+//        for (int index = 0; index < completed_ops.size(); ++index){
+//            currOp = completed_ops.get(index);
+        while(!completed_ops.isEmpty()){
+        	currOp = completed_ops.remove(0);
+        
             Transaction parentTxn = transactions.getByTID(currOp.tid);
 
             // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.

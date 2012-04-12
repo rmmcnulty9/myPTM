@@ -30,7 +30,7 @@ public class TranscationManager extends Thread{
 
 		int next_index=0;
 
-		while(!transactions.isEmpty()){
+		while(!allFilesEmpty()){
 
 			if(rr_read){
 
@@ -45,7 +45,7 @@ public class TranscationManager extends Thread{
 					if (op == null){
 						setOpsLeftInFile(trans.tid, false);
 					}else{
-						System.out.println("[TM] Read in operation:"+op.toString());
+//						System.out.println("[TM] Read in operation:"+op.toString());
 						trans.add(new Operation(next_index, op));
 					}
 				}
@@ -74,7 +74,18 @@ public class TranscationManager extends Thread{
 				}
 			}
 		}
-		System.out.println("[TM] No more operations.");
+		System.out.println("[TM] No more operations. Waiting on Scheduler...");
+		scheduler.setTMDoneFlag();
+		  while (!schedExitFlag)
+	        {
+	            // Check every 1/4 sec. to see if DM is done.
+	            try {
+					sleep(250);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+	        }
+		  
 	}
 
 	public TranscationManager(String read_method, int _buffer_size,
@@ -159,6 +170,13 @@ public class TranscationManager extends Thread{
 			}
 		}
 		return false;
+	}
+	
+	public boolean allFilesEmpty(){
+		for(int i=0;i<transactions.size();i++){
+			if(transactions.get(i).ops_left_in_file) return false;
+		}
+		return true;
 	}
 
 //	Not needed anymore - done in Scheduler
