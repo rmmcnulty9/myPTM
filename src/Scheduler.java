@@ -172,21 +172,21 @@ public class Scheduler extends Thread{
      */
     private void scheduleStalledTxns(){
         // List to store the transactions that need to be removed.
-        ArrayList<Integer> restartedTxnIndexes = new ArrayList<Integer>();
+        TransactionList restartedTxns = new TransactionList();
 
         // Traverse the stalled transactions list and see if ops now exist to be scheduled.
         for (int index = 0; index < stalledTxns.size(); ++index){
             if (!stalledTxns.get(index).isEmpty()){
                 // Now that there is an op, schedule it and mark it for removal from the stalled queue.
                 scheduleNextOp(stalledTxns.get(index));
-                restartedTxnIndexes.add((Integer)(index));
+                restartedTxns.add(stalledTxns.get(index));
             }
         }
 
         // Now that the entire stalled transactions list has been traversed
         // remove the transactions that were restarted.
-        for (int index = 0; index < restartedTxnIndexes.size(); ++index){
-            stalledTxns.remove(restartedTxnIndexes.get(index));
+        for (int index = 0; index < restartedTxns.size(); ++index){
+            stalledTxns.remove(restartedTxns.get(index));
         }
     }
 
