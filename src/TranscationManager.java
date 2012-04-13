@@ -85,6 +85,7 @@ public class TranscationManager extends Thread{
 					e.printStackTrace();
 				}
 	        }
+	        System.out.println("Transaction Manager is exiting...");
 		  
 	}
 

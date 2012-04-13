@@ -50,10 +50,6 @@ public class DataFile{
 		
 	}
 	
-	public boolean addPageID(int pid){
-		return page_ids.add(new Integer(pid));
-	}
-	
 	public int getPageIDByIndex(int index){
 		if(index>= page_ids.size()){
 			return -1;
@@ -61,14 +57,14 @@ public class DataFile{
 		return page_ids.get(index).intValue();
 	}
 	
-	public int getPageIDByID(int id){
-		return page_ids.get(page_ids.indexOf(new Integer(id)));
-	}
+	//TODO This makes no sense
+//	public int getPageIDByID(int id){
+//		return page_ids.get(page_ids.indexOf(new Integer(id)));
+//	}
 	
 	public boolean isEmpty(){
 		return page_ids.size()==0;
 	}
-	
 	public boolean delete(){
 		File f = new File("filename");
 		return f.delete();
@@ -82,5 +78,17 @@ public class DataFile{
 			e.printStackTrace();
 		}
 		return true;
+	}
+	
+	public boolean addPageID(int pid){
+		return page_ids.add(new Integer(pid));
+	}
+	public void addPageID(int i, int pid) {
+		page_ids.add(i, new Integer(pid));
+		
+	}
+
+	public int getPageCount() {
+		return page_ids.size();
 	}
 }

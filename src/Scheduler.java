@@ -1,8 +1,7 @@
 import java.util.ArrayList;
 import java.util.Date;
-
-//import org.joda.time.DateTime;
-//import org.joda.time.Instant;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
 
 
 
@@ -129,6 +128,8 @@ public class Scheduler extends Thread{
 
         // Notify the transaction manager that the scheduler is exiting.
         tm_task.setSchedExitFlag();
+        
+        System.out.println("Scheduler is exiting...");
 	}
 
 
@@ -221,7 +222,7 @@ public class Scheduler extends Thread{
                 System.out.println("[Sched] DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
             }
 
-            if ((currOp.type == "C") || (currOp.type == "A")){
+            if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){
                 // This transaction has committed or aborted, so remove it from the transaction list.
                 if (!transactions.remove(parentTxn)){
                     System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");

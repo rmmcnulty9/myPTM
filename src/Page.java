@@ -39,7 +39,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		if(r==null){
 			System.out.println("null!!!");
 		}
-		if ((this.size()+1)> RECORDS_PER_PAGE) return false;
+		if ((super.size()+1)> RECORDS_PER_PAGE) return false;
 		return super.add(r);
 	}
 	

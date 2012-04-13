@@ -66,7 +66,6 @@ public class myPTM {
 		System.out.println("Started TransactionManager...");
 		tm.start();
 
-
 	}
 
 }
