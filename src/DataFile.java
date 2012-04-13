@@ -74,6 +74,8 @@ public class DataFile{
 		try {
 			inputStream.close();
 			outputStream.close();
+			fis.close();
+			fos.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

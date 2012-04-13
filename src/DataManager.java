@@ -6,6 +6,7 @@ import java.util.ArrayList;
 public class DataManager extends Thread {
 
 	public static int next_global_page_id;
+	public static int next_global_LSN;
 
 	public ArrayList<Operation> current_ops = null;
 
@@ -20,7 +21,6 @@ public class DataManager extends Thread {
 	private int buffer_size;
 	private String search_method;
 	private Journal journal;
-	private int buffer_mgmt_table[][];
 	private ArrayList<Page> buffer;
     // Flag indicating when the TM has completed its work.
     private boolean schedDoneFlag = false;
@@ -34,21 +34,19 @@ public class DataManager extends Thread {
 		current_ops = _current_op;
         completed_ops = _completed_ops;
 		buffer_size = _buffer_size;
-		next_global_page_id=0;
+		next_global_page_id = 0;
+		next_global_LSN = 0;
 		schedDoneFlag = false;
 		scheduler  = s;
-		/*
+		/* TODO move BMT to the Page
 		 * Buffer Management table has(in order):
 		 * 	block ID, dirty bit, fix count, page LSN, Stable-LSN and page number
 		 */
 
-		buffer_mgmt_table = new int[buffer_size][6];
 		buffer = new ArrayList<Page>(buffer_size);
-
 
 		search_method = _search_method;
 
-		//TODO Initialize LockTree??
 		data_files = new ArrayList<DataFile>();
 		journal = new Journal();
 
@@ -62,18 +60,15 @@ public class DataManager extends Thread {
 			if(!current_ops.isEmpty()){
 				Operation op = current_ops.remove(0);
 				if(op == null){
-					System.out.println("Operations is null??");
+					System.out.println("[DM] Operations is null??");
 					System.exit(0);
 				}
 
 				if(op.type.equals("A")){
 					//TODO Write undo function
 				}else if(op.type.equals("C")){
-					System.out.println("Committing...");
-					//TODO flush only dirty pages for this transaction?
-					while(!buffer.isEmpty()){
-						flushPage(buffer.remove(0));
-					}
+					System.out.println("[DM] Committing...");
+					flushTransactionsPages(op.tid);
 					completed_ops.add(op);
 					continue;
 				}else{
@@ -94,38 +89,46 @@ public class DataManager extends Thread {
 
 					if(op.type.equals("R")){
 						read_count++;
-						System.out.println("Scan Method: Reading "+read_count+"...");
+						System.out.println("[DM] Scan Method: Reading "+read_count+"...");
 
 						//First check the buffer for desired page
 						Record r = getRecordFromBufferedPage(Integer.parseInt(op.val));
 						 if(r != null){
 								System.out.println("[DM]"+r);
+								completed_ops.add(op);
 								continue;
 						 }
 						 //Then check file
-						r = getRecordFromDataFile(df,Integer.parseInt(op.val));
+						r = getRecordFromDataFile(df, op.tid, Integer.parseInt(op.val));
 						if(r != null){
 							System.out.println("[DM]"+r);
+							completed_ops.add(op);
 							continue;
 						}else{
 							System.out.println("[DM] Records not found!");
+							completed_ops.add(op);
 							continue;
 						}
 
 
 					}else if(op.type.equals("W")){
 						write_count++;
-						System.out.println("Scan Method: Writing "+write_count+"...");
+						System.out.println("[DM] Scan Method: Writing "+write_count+"...");
 						
-						next_global_page_id = addRecordToFileScan(op.record, df, next_global_page_id);
+						next_global_page_id = addRecordToFileScan(op.record, df, op.tid, next_global_page_id);
+						completed_ops.add(op);
+						continue;
+						
 
 					}else if(op.type.equals("D")){
 						delete_count++;
-						System.out.println("Scan Method: Delete "+delete_count+"...");
+						System.out.println("[DM] Scan Method: Delete "+delete_count+"...");
 						df.close();
 						//TODO back up the DataFile in case of abort
 						df.delete();
 						data_files.remove(df);
+						completed_ops.add(op);
+						continue;
 					}
 
 
@@ -145,76 +148,105 @@ public class DataManager extends Thread {
 									
 					
 					if(op.type.equals("R")){
-						System.out.println("Hash Method: Reading "+read_count+"...");
+						System.out.println("[DM] Hash Method: Reading "+read_count+"...");
 						int page_id = op.record.ID % df.getPageCount();
 						Page p = getBufferedPageByID(page_id);
 						if(p==null){
 							// Not in buffer look in file
-							p = loadPage(df, page_id);
+							p = loadPage(df, op.tid, page_id);
 						}
 						if(p == null){
 							System.out.println("[DM] Records not found!");
+							completed_ops.add(op);
+							continue;
 						}else{
 							Record r = p.getRecordFromPage(Integer.parseInt(op.val));
 							if(r==null){
 								System.out.println("[DM] Records not found!");
+								completed_ops.add(op);
 								continue;
 							}else{
 								System.out.println("[DM]"+r);
+								completed_ops.add(op);
 								continue;
 							}
 						}
-						
-						System.exit(0);
-
 					}else if(op.type.equals("W")){
-						System.out.println("Hash Method: Writing "+write_count+"...");
+						System.out.println("[DM] Hash Method: Writing "+write_count+"...");
 						int page_id = op.record.ID % df.getPageCount();
 						Page p = getBufferedPageByID(page_id);
 						if(p==null){
 							// Not in buffer look in file
-							p = loadPage(df, page_id);
+							p = loadPage(df, op.tid, page_id);
 						}
 						if(p == null){
 							System.out.println("[DM] Records not found!");
 							//TODO add page & rehash file - double pages in file??
+							completed_ops.add(op);
+							continue;
 						}else{
 							//TODO Add records to page now in buffer
+							completed_ops.add(op);
+							continue;
 						}
-						
-						System.exit(0);
 
 					}else if(op.type.equals("D")){
 
-						System.out.println("Hash Method: Delete "+delete_count+"...");
+						System.out.println("[DM] Hash Method: Delete "+delete_count+"...");
 						df.close();
 						//TODO back up the DataFile in case of abort
 						df.delete();
 						data_files.remove(df);
+						completed_ops.add(op);
+						continue;
 					}
 				}else{
-					System.out.println("Bad Search Method.");
+					System.out.println("[DM] Bad Search Method.");
 					System.exit(0);
 				}
 
-				//Add the completed op to the completeed_op list
-				completed_ops.add(op);
 			}
 		}
-		
+		//Close the datafile
+		System.out.println("[DM] Closing all data files...");
+		while(!data_files.isEmpty()){
+			DataFile df = data_files.remove(0);
+			df.close();
+		}
 		scheduler.setDMExitFlag();
 
-        System.out.println("Data Manager is exiting...");
+        System.out.println("[DM] Data Manager is exiting...");
 		
 	}
 
-	private Record getRecordFromDataFile(DataFile df, int id) {
+	private void flushTransactionsPages(int tid) {
+		int orig_size = buffer.size();
+		int touched = 0;
+		while(touched!= orig_size){
+			Page p = buffer.get(touched);
+			boolean isDirty = p.dirtied_by.remove(new Integer(tid));
+			p.fixed_by.remove(new Integer(tid));
+			if(isDirty){
+				flushPage(p);
+				if(p.fixed_by.size()==0 ){
+					//TODO Made sure this will actually remove the Page - scary remove(object)
+					buffer.remove(p);
+					touched--;
+					orig_size--;
+				}
+			}
+			touched++;
+		}
+		
+	}
+
+	private Record getRecordFromDataFile(DataFile df, int tid, int id) {
 		
 		int i=0;
 		while(df.getPageIDByIndex(i)!= -1){
 			
 			int page_id = df.getPageIDByIndex(i);
-			Page p = loadPage(df, page_id);
+			Page p = loadPage(df, tid, page_id);
 			if(p != null){
 				Record r = p.getRecordFromPage(id);
 				if(r!=null){
@@ -245,12 +277,13 @@ public class DataManager extends Thread {
 		return null;
 	}
 
-	private int addRecordToFileScan(Record new_r, DataFile df, int next_pid) {
+	private int addRecordToFileScan(Record new_r, DataFile df, int tid, int next_pid) {
 		//If dataFile is empty add page
 		if(df.isEmpty()){
-			Page p = new Page(df.filename,next_pid);
+			Page p = new Page(df.filename,next_pid, next_global_LSN);
+			next_global_LSN+=1;
 			if(!p.add(new_r)){
-				System.out.println("Can not add to this page!");
+				System.out.println("[DM] Can not add to this page!");
 			}
 			df.addPageID(next_pid);
 			if(buffer.size() == buffer_size){
@@ -274,22 +307,28 @@ public class DataManager extends Thread {
 				if(r.ID == new_r.ID){	//Replace if its present
 					p.remove(k);
 					if(!p.addAtIndex(k, new_r)){
-						System.out.println("Can not add to this page!");
+						System.out.println("[DM] Can not add to this page!");
+						p.dirtied_by.add(tid);
 						return splitPage(df, p, new_r,next_pid, k);
 					}
+					p.dirtied_by.add(tid);
 					return next_pid;
 				}else  if(r.ID>new_r.ID){ // Add in front of first record with greater ID
 					if(!p.addAtIndex(k,new_r)){
-						System.out.println("Can not add to this page!");
+						System.out.println("[DM] Can not add to this page!");
+						p.dirtied_by.add(tid);
 						return splitPage(df, p, new_r,next_pid, k);
 					}
+					p.dirtied_by.add(tid);
 					return next_pid;
 				}
 				else if (k==(p.size()-1) && (j==(buffer.size()-1))){ //If end of last page in buffer
 					if(!p.addAtIndex(k+1,new_r)){
-						System.out.println("Can not add to this page!");
+						System.out.println("[DM] Can not add to this page!");
+						p.dirtied_by.add(tid);
 						return splitPage(df, p, new_r,next_pid, k);
 					}
+					p.dirtied_by.add(tid);
 					return next_pid;
 				}
 			}
@@ -305,9 +344,9 @@ public class DataManager extends Thread {
 				Page old_p = buffer.remove(0);
 				flushPage(old_p);
 			}
-			Page p = loadPage(df, page_id);
+			Page p = loadPage(df, tid, page_id);
 			if(p==null){
-				System.out.println("Page not found!");
+				System.out.println("[DM] Page not found!");
 			}else{
 				for(int k=0;k<p.size();k++){
 					Record r = p.get(k);
@@ -315,18 +354,23 @@ public class DataManager extends Thread {
 					if(r.ID == new_r.ID){
 						p.remove(k);
 						if(!p.addAtIndex(k, new_r)){
-							System.out.println("Can not add to this page!");
+							System.out.println("[DM] Can not add to this page!");
+							p.dirtied_by.add(tid);
 							return splitPage(df, p, new_r,next_pid, k);
 						}
+						p.dirtied_by.add(tid);
 						return next_pid;
 					}else if(df.getPageIDByIndex(i+1)==-1 && p.isFull()){
 						//Split the Page & shift
+						p.dirtied_by.add(tid);
 						return splitPage(df,p,new_r,next_pid,k);
 					}else if(r.ID>new_r.ID){
 						if(!p.addAtIndex(k,new_r)){
-							System.out.println("Can not add to this page!");
+							System.out.println("[DM] Can not add to this page!");
+							p.dirtied_by.add(tid);
 							return splitPage(df, p, new_r,next_pid, k);
 						}
+						p.dirtied_by.add(tid);
 						return next_pid;
 					}
 //					else if (k==(p.size()-1)){
@@ -356,16 +400,17 @@ public class DataManager extends Thread {
 
 
 private int splitPage(DataFile df, Page p, Record r, int next_pid, int i) {
-	Page new_p = new Page(df.filename, next_pid);
+	Page new_p = new Page(df.filename, next_pid, next_global_LSN);
+	next_global_LSN+=1;
 	//Move all records from the one larger than the new record on to the new page
 	while(p.size()!=i+1){
 		if(!new_p.add(p.remove(i))){
-			System.out.println("Can not add to this page!");
+			System.out.println("[DM] Can not add to this page!");
 		}
 	}
 	//Add the new record
 	if(!new_p.add(r)){
-		System.out.println("Can not add to this page!");
+		System.out.println("[DM] Can not add to this page!");
 	}
 	//Add page t buffer and DataFile
 	if(buffer.size() == buffer_size){
@@ -389,7 +434,7 @@ public DataFile getDataFileByName(String fn){
 	return null;
 }
 
-public Page loadPage(DataFile df, int page_id){
+public Page loadPage(DataFile df, int tid, int page_id){
 	Page page; // = new Page(df.filename, page_id);
 	
 	//If not check if buffer is full if so do replacement, else just add Page
@@ -400,19 +445,22 @@ public Page loadPage(DataFile df, int page_id){
 	}
 	
 	try {
-		df.inputStream.skipBytes(Page.PAGE_SIZE_BYTES*page_id);
+		int ret = df.inputStream.skipBytes(Page.PAGE_SIZE_BYTES*page_id);
 		page = (Page)df.inputStream.readObject();
-		System.out.println(page);
+		System.out.println("PAGE LOADED: "+page);
+		page.fixed_by.add(tid);
+		buffer.add(page);
+		
 		return page;
 	}catch (EOFException e){
 		return null;
 	}
 	catch (IOException e) {
 		e.printStackTrace();
-		System.exit(0);
+		return null;
 	} catch (ClassNotFoundException e) {
 		e.printStackTrace();
-		System.exit(0);
+		return null;
 	}
 	/*
 	 * Terminate with NULL we have 2 free bytes per page, we could do something else
@@ -433,15 +481,24 @@ public Page loadPage(DataFile df, int page_id){
 
 	return null;
 }
-
+/*
+ * @summary 
+ * The page MUST be removed from the buffer in calling function
+ * 
+ * @param Page page - page to be written to file
+ */
 public boolean flushPage(Page page){
 	DataFile df = getDataFileByName(page.file_of_origin);
-
+	//Current LSN will become stable & LSn will be zero while not in memory buffer
+	page.stableLSN = page.LSN;
+	page.LSN = 0;
+	
 	try {
 		//Position
 		df.fos.getChannel().position(page.page_id * Page.PAGE_SIZE_BYTES);
 		df.outputStream.writeObject(page);
 		df.outputStream.flush();
+		return true;
 	} catch (IOException e) {
 		e.printStackTrace();
 		System.exit(0);

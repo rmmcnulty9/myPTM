@@ -11,11 +11,21 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	public static final int RECORD_SIZE_BYTES = 34;
 
 	String file_of_origin;
+	
+//	page ID, dirty bit, fix count, page LSN, Stable-LSN and page number
 	int page_id;
+	ArrayList <Integer> dirtied_by;
+	ArrayList <Integer> fixed_by;
+	int LSN;
+	int stableLSN;
 
-	public Page(String f, int p){
+	public Page(String f, int p, int _LSN){
 		file_of_origin = f;
 		page_id = p;
+		dirtied_by = new ArrayList <Integer>();
+		fixed_by = new ArrayList <Integer>();
+		LSN = LSN;
+		stableLSN = 0;
 	}
 
 	public boolean isFull(){
