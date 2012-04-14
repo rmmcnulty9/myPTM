@@ -7,8 +7,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	 */
 	private static final long serialVersionUID = -2938553534535400394L;
 	public static final int RECORDS_PER_PAGE = 15;
-	public static final int PAGE_SIZE_BYTES = 512;
-	public static final int RECORD_SIZE_BYTES = 34;
+	public static final int PAGE_SPACING_BYTES = 2048;
 
 	String file_of_origin;
 	
@@ -65,7 +64,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	
 	public String toString(){
 		String s="Page "+page_id+"\n";
-		for(int i=0;i<RECORDS_PER_PAGE;i++){
+		for(int i=0;i<this.size();i++){
 			s+=	"Record "+i+": "+this.get(i).toString()+"\n";
 		}
 		return s;

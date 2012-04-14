@@ -124,8 +124,6 @@ public class TranscationManager extends Thread{
 		}
 	}
 
-
-
     /* @summary
      * This method sets the scheduler exit flag which indicates that it has
      * exited and it is now safe for the TM to exit.

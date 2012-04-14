@@ -214,7 +214,7 @@ public class Scheduler extends Thread{
 
         while(!completed_ops.isEmpty()){
         	currOp = completed_ops.remove(0);
-
+        	
             Transaction parentTxn = transactions.getByTID(currOp.tid);
 
             // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.

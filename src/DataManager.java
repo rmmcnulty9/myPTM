@@ -1,5 +1,9 @@
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 
@@ -126,6 +130,9 @@ public class DataManager extends Thread {
 						df.close();
 						//TODO back up the DataFile in case of abort
 						df.delete();
+						next_global_page_id=0;
+						//TODO For now assume only one datafile so remove everything from buffer
+						buffer.clear();
 						data_files.remove(df);
 						completed_ops.add(op);
 						continue;
@@ -196,6 +203,9 @@ public class DataManager extends Thread {
 						df.close();
 						//TODO back up the DataFile in case of abort
 						df.delete();
+						next_global_page_id=0;
+						//TODO For now assume only one datafile so remove everything from buffer
+						buffer.clear();
 						data_files.remove(df);
 						completed_ops.add(op);
 						continue;
@@ -214,7 +224,7 @@ public class DataManager extends Thread {
 			df.close();
 		}
 		scheduler.setDMExitFlag();
-
+		
         System.out.println("[DM] Data Manager is exiting...");
 		
 	}
@@ -291,7 +301,8 @@ public class DataManager extends Thread {
 				Page old_p = buffer.remove(0);
 				flushPage(old_p);
 			}
-			buffer.add(p);
+			addToBuffer(p);
+//			buffer.add(p);
 			return (next_pid+1);
 		}
 
@@ -309,15 +320,15 @@ public class DataManager extends Thread {
 					if(!p.addAtIndex(k, new_r)){
 						System.out.println("[DM] Can not add to this page!");
 						p.dirtied_by.add(tid);
-						return splitPage(df, p, new_r,next_pid, k);
+						return splitPage(df, p, new_r,next_pid, tid, k);
 					}
 					p.dirtied_by.add(tid);
 					return next_pid;
-				}else  if(r.ID>new_r.ID){ // Add in front of first record with greater ID
+				}else if(r.ID>new_r.ID){ // Add in front of first record with greater ID
 					if(!p.addAtIndex(k,new_r)){
 						System.out.println("[DM] Can not add to this page!");
 						p.dirtied_by.add(tid);
-						return splitPage(df, p, new_r,next_pid, k);
+						return splitPage(df, p, new_r,next_pid, tid, k);
 					}
 					p.dirtied_by.add(tid);
 					return next_pid;
@@ -326,7 +337,7 @@ public class DataManager extends Thread {
 					if(!p.addAtIndex(k+1,new_r)){
 						System.out.println("[DM] Can not add to this page!");
 						p.dirtied_by.add(tid);
-						return splitPage(df, p, new_r,next_pid, k);
+						return splitPage(df, p, new_r,next_pid, tid, k);
 					}
 					p.dirtied_by.add(tid);
 					return next_pid;
@@ -356,19 +367,19 @@ public class DataManager extends Thread {
 						if(!p.addAtIndex(k, new_r)){
 							System.out.println("[DM] Can not add to this page!");
 							p.dirtied_by.add(tid);
-							return splitPage(df, p, new_r,next_pid, k);
+							return splitPage(df, p, new_r,next_pid, tid, k);
 						}
 						p.dirtied_by.add(tid);
 						return next_pid;
 					}else if(df.getPageIDByIndex(i+1)==-1 && p.isFull()){
 						//Split the Page & shift
 						p.dirtied_by.add(tid);
-						return splitPage(df,p,new_r,next_pid,k);
+						return splitPage(df, p, new_r, next_pid, tid, k);
 					}else if(r.ID>new_r.ID){
 						if(!p.addAtIndex(k,new_r)){
 							System.out.println("[DM] Can not add to this page!");
 							p.dirtied_by.add(tid);
-							return splitPage(df, p, new_r,next_pid, k);
+							return splitPage(df, p, new_r,next_pid, tid, k);
 						}
 						p.dirtied_by.add(tid);
 						return next_pid;
@@ -399,19 +410,20 @@ public class DataManager extends Thread {
 
 
 
-private int splitPage(DataFile df, Page p, Record r, int next_pid, int i) {
+private int splitPage(DataFile df, Page p, Record r, int next_pid, int tid, int i) {
 	Page new_p = new Page(df.filename, next_pid, next_global_LSN);
 	next_global_LSN+=1;
 	//Move all records from the one larger than the new record on to the new page
-	while(p.size()!=i+1){
+	while(p.size()!=i){
 		if(!new_p.add(p.remove(i))){
 			System.out.println("[DM] Can not add to this page!");
 		}
 	}
 	//Add the new record
-	if(!new_p.add(r)){
+	if(!p.add(r)){
 		System.out.println("[DM] Can not add to this page!");
 	}
+	new_p.dirtied_by.add(tid);
 	//Add page t buffer and DataFile
 	if(buffer.size() == buffer_size){
 		//TODO replace
@@ -419,10 +431,29 @@ private int splitPage(DataFile df, Page p, Record r, int next_pid, int i) {
 		flushPage(old_p);
 	}
 	df.addPageID(p.page_id+1,next_pid);
-	buffer.add(new_p);
+	addToBuffer(new_p);
+//	buffer.add(new_p);
 
 
 	return next_pid+1;
+}
+
+private void addToBuffer(Page new_page) {
+	if(buffer.size()==0){
+		buffer.add(new_page);
+		return;
+	}
+	//Maintain ordering of pages in buffer
+	for(int i=0;i<buffer.size();i++){
+		if(buffer.get(i).get(0).ID>new_page.get(0).ID){
+			buffer.add(i,new_page);
+			return;
+		}
+	}
+
+	buffer.add(new_page);
+	return;
+	
 }
 
 public DataFile getDataFileByName(String fn){
@@ -445,40 +476,28 @@ public Page loadPage(DataFile df, int tid, int page_id){
 	}
 	
 	try {
-		int ret = df.inputStream.skipBytes(Page.PAGE_SIZE_BYTES*page_id);
+		long pos = Page.PAGE_SPACING_BYTES*df.getPIDIndexByPID(page_id);
+		df.fis.getChannel().position(pos);
+		df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
 		page = (Page)df.inputStream.readObject();
 		System.out.println("PAGE LOADED: "+page);
 		page.fixed_by.add(tid);
-		buffer.add(page);
+		addToBuffer(page);
+//		buffer.add(page);
 		
 		return page;
 	}catch (EOFException e){
+//		e.printStackTrace();
+		System.out.println("[DM] Page not found!");
 		return null;
 	}
 	catch (IOException e) {
 		e.printStackTrace();
-		return null;
+		System.exit(0);
 	} catch (ClassNotFoundException e) {
 		e.printStackTrace();
-		return null;
+		System.exit(0);
 	}
-	/*
-	 * Terminate with NULL we have 2 free bytes per page, we could do something else
-	 */
-	//		for(int i=0;i<cbuf.length-1;i+=Page.RECORD_SIZE_BYTES){
-	//			String record = new String(cbuf,i, Page.PAGE_SIZE_BYTES);
-	//			System.out.println("Records in this page:");
-	//			System.out.println(record);
-	//
-	//			Byte id = new Byte(cbuf, i, 4);
-	//			String client_name = new String(cbuf, i+4, 4+18);
-	//			String phone = new String(cbuf, i+4+18, 12);
-	//
-	//			if(cbuf[i+1]=='\0'){
-	//				return page;
-	//			}
-	//		}
-
 	return null;
 }
 /*
@@ -495,9 +514,16 @@ public boolean flushPage(Page page){
 	
 	try {
 		//Position
-		df.fos.getChannel().position(page.page_id * Page.PAGE_SIZE_BYTES);
+		long pos = df.getPIDIndexByPID(page.page_id) * Page.PAGE_SPACING_BYTES;
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		df.outputStream = new ObjectOutputStream(bos);
+
 		df.outputStream.writeObject(page);
 		df.outputStream.flush();
+
+		df.fos.getChannel().position(pos);
+		bos.writeTo(df.fos);
+		df.outputStream.close();
 		return true;
 	} catch (IOException e) {
 		e.printStackTrace();

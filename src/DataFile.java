@@ -1,3 +1,5 @@
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -10,10 +12,12 @@ import java.util.ArrayList;
 
 public class DataFile{
 	public String filename;
-	public ObjectInputStream inputStream;
-	public ObjectOutputStream outputStream;
 	public FileOutputStream fos;
+	public ByteArrayOutputStream baos;
+	public ObjectOutputStream outputStream;
 	public FileInputStream fis;
+	public BufferedInputStream bis;
+	public ObjectInputStream inputStream;
 	private ArrayList <Integer> page_ids;
 	
 	public DataFile(String _fn){
@@ -27,7 +31,9 @@ public class DataFile{
 		}
 		try {
 			fos = new FileOutputStream(f);
-			outputStream = new ObjectOutputStream(fos);
+//			baos = new ByteArrayOutputStream();
+//			outputStream = new ObjectOutputStream(baos);
+//			outputStream.flush();
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			System.exit(0);
@@ -37,7 +43,8 @@ public class DataFile{
 		}
 		try {
 			fis = new FileInputStream(f);
-			inputStream = new ObjectInputStream(fis);
+			bis = new BufferedInputStream(fis);
+//			inputStream = new ObjectInputStream(bis);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			System.exit(0);
@@ -72,8 +79,8 @@ public class DataFile{
 	
 	public boolean close(){
 		try {
-			inputStream.close();
-			outputStream.close();
+//			inputStream.close();
+//			outputStream.close();
 			fis.close();
 			fos.close();
 		} catch (IOException e) {
@@ -92,5 +99,9 @@ public class DataFile{
 
 	public int getPageCount() {
 		return page_ids.size();
+	}
+
+	public int getPIDIndexByPID(int page_id) {
+		return page_ids.indexOf(page_id);
 	}
 }
