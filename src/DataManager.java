@@ -196,6 +196,16 @@ public class DataManager extends Thread {
 							continue;
 						}else{
 							//TODO Add records to page now in buffer
+							for(int i=0;i<p.size();i++){
+								Record cur_r = p.get(i);
+								if(cur_r.ID>op.record.ID){
+									if(!p.addAtIndex(i, op.record)){
+										rehashDataFile(df,op.record,op.tid,next_global_page_id);
+									}
+								}else if(i==Page.RECORDS_PER_PAGE-1){
+									rehashDataFile(df,op.record,op.tid,next_global_page_id);
+								}
+							}
 							completed_ops.add(op);
 							continue;
 						}
@@ -229,6 +239,13 @@ public class DataManager extends Thread {
 		scheduler.setDMExitFlag();
 		
         System.out.println("[DM] Data Manager is exiting...");
+		
+	}
+
+	private void rehashDataFile(DataFile df, Record record, int tid, int next_pid) {
+		//TODO add page & rehash file - double pages in file??
+		// Create temp file with double the number of block in df
+		// Load all bloacks from df rehashing their records and flushing
 		
 	}
 
