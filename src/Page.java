@@ -13,14 +13,16 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	
 //	page ID, dirty bit, fix count, page LSN, Stable-LSN and page number
 	int page_id;
+	int block_id;
 	ArrayList <Integer> dirtied_by;
 	ArrayList <Integer> fixed_by;
 	int LSN;
 	int stableLSN;
 
-	public Page(String f, int p, int _LSN){
+	public Page(String f, int p, int b, int _LSN){
 		file_of_origin = f;
 		page_id = p;
+		block_id = b;
 		dirtied_by = new ArrayList <Integer>();
 		fixed_by = new ArrayList <Integer>();
 		LSN = LSN;
@@ -63,7 +65,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	}
 	
 	public String toString(){
-		String s="Page "+page_id+"\n";
+		String s="Page "+page_id+" Block "+block_id+"\n";
 		for(int i=0;i<this.size();i++){
 			s+=	"Record "+i+": "+this.get(i).toString()+"\n";
 		}

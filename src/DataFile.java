@@ -1,6 +1,7 @@
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -12,17 +13,22 @@ import java.util.ArrayList;
 
 public class DataFile{
 	public String filename;
-	public FileOutputStream fos;
+	public FileOutputStream fos_overwrite;
 	public ByteArrayOutputStream baos;
 	public ObjectOutputStream outputStream;
 	public FileInputStream fis;
 	public BufferedInputStream bis;
 	public ObjectInputStream inputStream;
+	public File f;
+	
+	/*
+	 * @summary The page ids indexed by block ids
+	 */
 	private ArrayList <Integer> page_ids;
 	
 	public DataFile(String _fn){
 		filename = _fn;
-		File f = new File(filename);
+		f = new File(filename);
 		try {
 			f.createNewFile();
 		} catch (IOException e1) {
@@ -30,10 +36,7 @@ public class DataFile{
 			System.exit(0);
 		}
 		try {
-			fos = new FileOutputStream(f);
-//			baos = new ByteArrayOutputStream();
-//			outputStream = new ObjectOutputStream(baos);
-//			outputStream.flush();
+			fos_overwrite = new FileOutputStream(f);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			System.exit(0);
@@ -57,17 +60,12 @@ public class DataFile{
 		
 	}
 	
-	public int getPageIDByIndex(int index){
-		if(index>= page_ids.size()){
+	public int getPageIDByBlockID(int bid){
+		if(bid>= page_ids.size()){
 			return -1;
 		}
-		return page_ids.get(index).intValue();
+		return page_ids.get(bid).intValue();
 	}
-	
-	//TODO This makes no sense
-//	public int getPageIDByID(int id){
-//		return page_ids.get(page_ids.indexOf(new Integer(id)));
-//	}
 	
 	public boolean isEmpty(){
 		return page_ids.size()==0;
@@ -79,10 +77,10 @@ public class DataFile{
 	
 	public boolean close(){
 		try {
-//			inputStream.close();
-//			outputStream.close();
-			fis.close();
-			fos.close();
+			if(null!=inputStream)inputStream.close();
+			if(null!=outputStream)outputStream.close();
+			if(null!=fis)fis.close();
+			if(null!=fos_overwrite)fos_overwrite.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -92,16 +90,20 @@ public class DataFile{
 	public boolean addPageID(int pid){
 		return page_ids.add(new Integer(pid));
 	}
-	public void addPageID(int i, int pid) {
+	public void addPageIDToBlockIDIndex(int i, int pid) {
 		page_ids.add(i, new Integer(pid));
 		
 	}
 
-	public int getPageCount() {
-		return page_ids.size();
-	}
+//	public int getPageCount() {
+//		return page_ids.size();
+//	}
 
 	public int getPIDIndexByPID(int page_id) {
 		return page_ids.indexOf(page_id);
+	}
+
+	public int BlockCount() {
+		return page_ids.size();
 	}
 }
