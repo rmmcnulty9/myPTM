@@ -7,15 +7,26 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	 */
 	private static final long serialVersionUID = -2938553534535400394L;
 	public static final int RECORDS_PER_PAGE = 15;
-	public static final int PAGE_SIZE_BYTES = 512;
-	public static final int RECORD_SIZE_BYTES = 34;
+	public static final int PAGE_SPACING_BYTES = 2048;
 
 	String file_of_origin;
+	
+//	page ID, dirty bit, fix count, page LSN, Stable-LSN and page number
 	int page_id;
+	int block_id;
+	ArrayList <Integer> dirtied_by;
+	ArrayList <Integer> fixed_by;
+	int LSN;
+	int stableLSN;
 
-	public Page(String f, int p){
+	public Page(String f, int p, int b, int _LSN){
 		file_of_origin = f;
 		page_id = p;
+		block_id = b;
+		dirtied_by = new ArrayList <Integer>();
+		fixed_by = new ArrayList <Integer>();
+		LSN = LSN;
+		stableLSN = 0;
 	}
 
 	public boolean isFull(){
@@ -54,8 +65,8 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	}
 	
 	public String toString(){
-		String s="Page "+page_id+"\n";
-		for(int i=0;i<RECORDS_PER_PAGE;i++){
+		String s="Page "+page_id+" Block "+block_id+"\n";
+		for(int i=0;i<this.size();i++){
 			s+=	"Record "+i+": "+this.get(i).toString()+"\n";
 		}
 		return s;
