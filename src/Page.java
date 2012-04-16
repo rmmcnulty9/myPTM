@@ -65,7 +65,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	}
 	
 	public String toString(){
-		String s="Page "+page_id+" Block "+block_id+"\n";
+		String s="File "+file_of_origin+" Page "+page_id+" Block "+block_id+"\n";
 		for(int i=0;i<this.size();i++){
 			s+=	"Record "+i+": "+this.get(i).toString()+"\n";
 		}

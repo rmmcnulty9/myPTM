@@ -71,7 +71,6 @@ public class DataFile{
 		return page_ids.size()==0;
 	}
 	public boolean delete(){
-		File f = new File("filename");
 		return f.delete();
 	}
 	
@@ -105,5 +104,15 @@ public class DataFile{
 
 	public int BlockCount() {
 		return page_ids.size();
+	}
+
+	public void initializeDataFileSize(int i) {
+		page_ids = new ArrayList<Integer>();
+		for(int k=0	;k<i;k++)
+			page_ids.add(new Integer(-1));
+	}
+
+	public void setPageIDInBlockIDIndex(int block_id, int page_id) {
+		page_ids.set(block_id, new Integer(page_id));
 	}
 }
