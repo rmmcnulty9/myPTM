@@ -90,6 +90,7 @@ public class Scheduler extends Thread{
 
 
         // Start the dead lock poll timer thread.
+        System.out.println("[Sched] Starting poll timer...");
         new PollTimer(500, this);
 
 
@@ -279,6 +280,9 @@ public class Scheduler extends Thread{
             	// Multiply by the number of concurrent transactions.
             	executionTime = executionTime.withDurationAdded(executionTime.getMillis(), transactions.size());
             	System.out.println("[Sched] Final deadlock execution time: " + String.valueOf(executionTime.getMillis()));
+
+            	// Store out newly calculated deadlockThreshold.
+            	deadlockThreshold = executionTime;
             }
 
             if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){

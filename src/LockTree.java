@@ -42,7 +42,7 @@ public class LockTree {
 			// Add the Record tree to the file tree.
 			fileTree.put(currOp.filename, recordTree);
 
-			if (currOp.type == "D"){
+			if (currOp.type.equals("D")){
 				// Deletes occur at the file level. As twisted as this sounds, the
 				// record tree contains locks for all records in a file, therefore
 				// when locking a file the transaction doing the delete is stored
@@ -62,7 +62,13 @@ public class LockTree {
 				targetLock = new Lock();
 
 				// Insert it into the record tree.
-				recordTree.put(currOp.record.ID, targetLock);
+				if (currOp.type.equals("W")){
+					// Writes have a record object.
+					recordTree.put(currOp.record.ID, targetLock);
+				}
+				else {
+					recordTree.put(Integer.valueOf(currOp.val), targetLock);
+				}
 
 				// Attempt to acquire the lock for the txn. Return whether it
 				// actually gets it now.
@@ -92,13 +98,25 @@ public class LockTree {
 					return true;
 				}
 				else {
-					targetLock = recordTree.get(Integer.valueOf(currOp.val));
+					// A write has a record.  The others just have a val.
+					if (currOp.type.equals("W")){
+						targetLock = recordTree.get(currOp.record.ID);
+					}
+					else {
+						targetLock = recordTree.get(Integer.valueOf(currOp.val));
+					}
 
 					if (targetLock == null){
 						targetLock = new Lock();
 
 						// Insert it into the record tree.
-						recordTree.put(Integer.valueOf(currOp.val), targetLock);
+						if (currOp.type.equals("W")){
+							// Writes have a record object.
+							recordTree.put(currOp.record.ID, targetLock);
+						}
+						else {
+							recordTree.put(Integer.valueOf(currOp.val), targetLock);
+						}	
 					}
 
 					// Attempt to acquire the lock for the txn. Return whether it
