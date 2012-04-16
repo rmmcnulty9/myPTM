@@ -364,8 +364,8 @@ public class DataManager extends Thread {
 			boolean r = new_df.f.exists();
 			new_df.fis = new FileInputStream(new_df.f);
 //			df.bis = new BufferedInputStream(df.fis);
-			new_df.fos_overwrite.close();
-			new_df.fos_overwrite = new FileOutputStream(new_df.f);
+			new_df.fos.close();
+			new_df.fos = new FileOutputStream(new_df.f);
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -669,32 +669,26 @@ public DataFile getDataFileByName(String fn){
 	return null;
 }
 
-public Page loadPage(DataFile df, int tid, int block_id){
-	Page page;
-	
-	try {		
-		if(block_id<0 || block_id>=df.BlockCount()||-1==df.getPageIDByBlockID(block_id)) return null;
-		
-		long pos = Page.PAGE_SPACING_BYTES * block_id;
-		FileChannel fc = df.fis.getChannel().position(pos);
-//		System.out.println(fc.position()+" "+fc.size());
+public Page loadPage(DataFile df, int tid, int bid){
+	if(bid<0 || bid>df.BlockCount()|| -1==df.getPageIDByBlockID(bid)) return null;
+	int bid_ctr=0;
+	try {
+
 		df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-		page = (Page)df.inputStream.readObject();
-		page.fixed_by.add(tid);
-		//If not check if buffer is full if so do replacement, else just add Page
-		if(buffer.size()==buffer_size){
-			removePageInBuffer(df, null);
+		while(df.inputStream.available()>0){
+			Page p = (Page)df.inputStream.readObject();
+			if(bid_ctr==bid){
+				if(p.block_id==bid){
+					System.out.println("Both block ids match");
+				}
+				return p;
+			}
+			bid_ctr++;
 		}
-		addToBuffer(page);
-//		System.out.println("PAGE LOADED: "+page);
-		
-		return page;
-	}catch (EOFException e){
-//		e.printStackTrace();
-		System.out.println("[DM] Page not found!");
+	}catch (EOFException e) {
+		//This means there is no page
 		return null;
-	}
-	catch (IOException e) {
+	}catch (IOException e) {
 		e.printStackTrace();
 		System.exit(0);
 	} catch (ClassNotFoundException e) {
@@ -704,96 +698,191 @@ public Page loadPage(DataFile df, int tid, int block_id){
 	return null;
 }
 
-/**
- * @param page_in_buffer; NOTE must be removed from buffer else where
- * @return if it was flushed or not
- */
-public boolean flushPage(DataFile df, Page page_in_buffer){
-	System.out.println("FLUSHING:\n"+page_in_buffer);
-	
-//	DataFile df = getDataFileByName(page_in_buffer.file_of_origin);
-//	if(df==null && page_in_buffer.file_of_origin.contains("_TEMP")){
-//		page_in_buffer.file_of_origin = page_in_buffer.file_of_origin.split("_TEMP")[0];
-//		df = getDataFileByName(page_in_buffer.file_of_origin);
-//		if(df == null){
-//			System.exit(0);
+// Old loadPage using seek. Might not work
+//public Page loadPage(DataFile df, int tid, int block_id){
+//	Page page;
+//	
+//	try {		
+//		if(block_id<0 || block_id>=df.BlockCount()||-1==df.getPageIDByBlockID(block_id)) return null;
+//		
+//		long pos = Page.PAGE_SPACING_BYTES * block_id;
+//		FileChannel fc = df.fis.getChannel().position(pos);
+//		System.out.println(fc.position()+" "+fc.size());
+//		df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
+//		page = (Page)df.inputStream.readObject();
+//		page.fixed_by.add(tid);
+//		//If not check if buffer is full if so do replacement, else just add Page
+//		if(buffer.size()==buffer_size){
+//			removePageInBuffer(df, null);
 //		}
+//		addToBuffer(page);
+////		System.out.println("PAGE LOADED: "+page);
+//		
+//		return page;
+//	}catch (EOFException e){
+////		e.printStackTrace();
+//		System.out.println("[DM] Page not found!");
+//		return null;
 //	}
-//	page_in_buffer.block_id = df.getPIDIndexByPID(page_in_buffer.page_id);
-	
-		Page page_in_file = null;
-		//Position
-		long pos = page_in_buffer.block_id * Page.PAGE_SPACING_BYTES;
+//	catch (IOException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	} catch (ClassNotFoundException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	}
+//	return null;
+//}
 
-		ByteArrayOutputStream bos = new ByteArrayOutputStream(Page.PAGE_SPACING_BYTES);
-		try {
-			df.outputStream = new ObjectOutputStream(bos);
-			// If this page does not already exist get it's version from the file
-			if(page_in_buffer.page_id!=page_in_buffer.block_id){
-				FileChannel fc = df.fis.getChannel().position(pos);
-//				System.out.println(fc.position()+" "+fc.size()+" "+df.fis.available());
-				if(fc.position()<fc.size()){
-					df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-					page_in_file = (Page)df.inputStream.readObject();
-				}
-//			df.inputStream.close();
-			}
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			System.exit(0);
-		} catch (ClassNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		try {
-		//Current LSN will become stable & LSN will be zero while not in memory buffer
-		page_in_buffer.stableLSN = page_in_buffer.LSN;
-		page_in_buffer.LSN = 0;
-		
-		df.outputStream.writeObject(page_in_buffer);
-		df.outputStream.flush();
-		FileChannel fc_o=null, fc_a=null;
-		//If the page_id in file is different from the one in buffer APPEND
-		if(null != page_in_file && page_in_file.page_id != page_in_buffer.page_id){
-			//Get the page to be over written
-			FileChannel fc = df.fis.getChannel().position(pos);
-//			System.out.println(fc.position()+" "+fc.size());
-			if(fc.position()<fc.size()){
+public boolean flushPage(DataFile df, Page page_in_buffer){
+	int bid_ctr=0;
+	try {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		df.outputStream = new ObjectOutputStream(bos);
+		System.out.println(df.fis.getChannel().position()+" "+df.fis.getChannel().size());
+		if(df.fis.getChannel().size()>0){
+			try {
 				df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-				page_in_file = (Page)df.inputStream.readObject();
+			} catch (EOFException e) {
+				df.outputStream.writeObject(page_in_buffer);
+				df.outputStream.flush();
+				bos.writeTo(df.fos);
+				return true;
+			}catch (Exception e){
+				e.printStackTrace();
+				System.exit(0);
 			}
-			
-			fc_a = df.fos_overwrite.getChannel().position(pos);
-//			System.out.println(fc_a.position()+" "+fc_a.size());
-			bos.writeTo(df.fos_overwrite);
-//			System.out.println(fc_a.position()+" "+fc_a.size());
-			page_in_file.block_id++;
-//			if(fc.position()<fc.size()){
-				flushPage(df, page_in_file);
-//			}
-//			System.exit(0);
 		}else{
-//			df.fos_append.getChannel().position(pos);
-//			bos.writeTo(df.fos_append);
-			fc_a = df.fos_overwrite.getChannel().position(pos);
-			System.out.println(fc_a.position()+" "+fc_a.size());
-			bos.writeTo(df.fos_overwrite);
-			System.out.println(fc_a.position()+" "+fc_a.size());
-//			System.exit(0);
+			df.outputStream.writeObject(page_in_buffer);
+			df.outputStream.flush();
+			bos.writeTo(df.fos);
+			return true;
 		}
-		df.outputStream.close();
-//		df.fos_append.close();
+		while(df.inputStream.available()>0){
+			Page page_in_file = (Page)df.inputStream.readObject();
+			if(page_in_file.block_id == page_in_buffer.block_id || page_in_buffer.block_id==bid_ctr){
+				df.outputStream.writeObject(page_in_buffer);
+				df.outputStream.flush();
+				bos.writeTo(df.fos);
+//			buffer.remove(page_in_buffer);
+				page_in_file.block_id++;
+				return flushPage(df, page_in_file);
+			}
+			bid_ctr++;
+		}
+		df.outputStream.writeObject(page_in_buffer);
 		return true;
-	} catch (IOException e) {
+	}catch (EOFException e) {
 		e.printStackTrace();
 		System.exit(0);
-	} 
-	catch (ClassNotFoundException e) {
+	}catch (IOException e) {
+		e.printStackTrace();
+		System.exit(0);
+	} catch (ClassNotFoundException e) {
 		e.printStackTrace();
 		System.exit(0);
 	}
-
 	return false;
 }
+
+// Old flushPage function. Might not work all the time
+///**
+// * @param page_in_buffer; NOTE must be removed from buffer else where
+// * @return if it was flushed or not
+// */
+//public boolean flushPage(DataFile df, Page page_in_buffer){
+//	System.out.println("FLUSHING:\n"+page_in_buffer);
+//	
+////	DataFile df = getDataFileByName(page_in_buffer.file_of_origin);
+////	if(df==null && page_in_buffer.file_of_origin.contains("_TEMP")){
+////		page_in_buffer.file_of_origin = page_in_buffer.file_of_origin.split("_TEMP")[0];
+////		df = getDataFileByName(page_in_buffer.file_of_origin);
+////		if(df == null){
+////			System.exit(0);
+////		}
+////	}
+////	page_in_buffer.block_id = df.getPIDIndexByPID(page_in_buffer.page_id);
+//	
+//		Page page_in_file = null;
+//		//Position
+//		long pos = page_in_buffer.block_id * Page.PAGE_SPACING_BYTES;
+//
+//		ByteArrayOutputStream bos = new ByteArrayOutputStream(Page.PAGE_SPACING_BYTES);
+//		try {
+//			df.outputStream = new ObjectOutputStream(bos);
+//			// If this page does not already exist get it's version from the file
+//			if(page_in_buffer.page_id!=page_in_buffer.block_id){
+//				FileChannel fc = df.fis.getChannel().position(pos);
+////				System.out.println(fc.position()+" "+fc.size()+" "+df.fis.available());
+//				if(fc.position()<fc.size()){
+//					df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
+//					page_in_file = (Page)df.inputStream.readObject();
+//				}
+////			df.inputStream.close();
+//			}
+//		} catch (IOException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//			System.exit(0);
+//		} catch (ClassNotFoundException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//		}
+//		try {
+//		//Current LSN will become stable & LSN will be zero while not in memory buffer
+//		page_in_buffer.stableLSN = page_in_buffer.LSN;
+//		page_in_buffer.LSN = 0;
+//		
+//		df.outputStream.writeObject(page_in_buffer);
+//		df.outputStream.flush();
+//		FileChannel fc_o=null, fc_a=null;
+//		//If the page_id in file is different from the one in buffer APPEND
+//		if(null != page_in_file && page_in_file.page_id != page_in_buffer.page_id){
+//			//Get the page to be over written
+//			FileChannel fc = df.fis.getChannel().position(pos);
+////			System.out.println(fc.position()+" "+fc.size());
+//			if(fc.position()<fc.size()){
+//				df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
+//				page_in_file = (Page)df.inputStream.readObject();
+//			}
+//			
+//			fc_a = df.fos_overwrite.getChannel().position(pos);
+//			System.out.println("Aft:"+fc_a.position()+" "+fc_a.size());
+//			bos.writeTo(df.fos_overwrite);
+////			bos.w
+//			bos.flush();
+////			System.out.println(fc_a.position()+" "+fc_a.size());
+//			page_in_file.block_id++;
+////			if(fc.position()<fc.size()){
+//				flushPage(df, page_in_file);
+////			}
+////			System.exit(0);
+//		}else{
+////			df.fos_append.getChannel().position(pos);
+////			bos.writeTo(df.fos_append);
+//			fc_a = df.fos_overwrite.getChannel().position(pos);
+//			System.out.println("Bef"+fc_a.position()+" "+fc_a.size());
+//			long before_size = fc_a.size();
+//			bos.writeTo(df.fos_overwrite);
+//			while(fc_a.size()<(before_size+Page.PAGE_SPACING_BYTES)){
+//				bos.write(0);
+//			}
+//			bos.flush();
+//			System.out.println("Aft"+fc_a.position()+" "+fc_a.size());
+////			System.exit(0);
+//		}
+//		df.outputStream.close();
+////		df.fos_append.close();
+//		return true;
+//	} catch (IOException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	} 
+//	catch (ClassNotFoundException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	}
+//
+//	return false;
+//}
 }

@@ -13,7 +13,7 @@ import java.util.ArrayList;
 
 public class DataFile{
 	public String filename;
-	public FileOutputStream fos_overwrite;
+	public FileOutputStream fos;
 	public ByteArrayOutputStream baos;
 	public ObjectOutputStream outputStream;
 	public FileInputStream fis;
@@ -36,7 +36,7 @@ public class DataFile{
 			System.exit(0);
 		}
 		try {
-			fos_overwrite = new FileOutputStream(f);
+			fos = new FileOutputStream(f);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			System.exit(0);
@@ -79,7 +79,7 @@ public class DataFile{
 			if(null!=inputStream)inputStream.close();
 			if(null!=outputStream)outputStream.close();
 			if(null!=fis)fis.close();
-			if(null!=fos_overwrite)fos_overwrite.close();
+			if(null!=fos)fos.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
