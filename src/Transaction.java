@@ -4,6 +4,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.*;
 
+import org.joda.time.DateTime;
+//import org.joda.time.Instant;
+
 public class Transaction extends ArrayList<Operation> {
 
 	/**
@@ -22,7 +25,16 @@ public class Transaction extends ArrayList<Operation> {
 	public int tid;
 	public int mode;
 	public boolean ops_left_in_file;
-    private Date timestamp;
+
+	// Operation start is used for deadlock detection.
+    public DateTime opStart = null;
+
+    // Transaction start is used for execution time reporting and deadlock threshold determination.
+    public DateTime txnStart = null;
+    
+    // List of locks that the txn has been granted.
+    public ArrayList<Lock> grantedLocks = null;
+    public ArrayList<RecordLockTree> grantedFileLocks = null;
 
 
 	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid, int _mode){
@@ -32,9 +44,8 @@ public class Transaction extends ArrayList<Operation> {
 		tid = _tid;
 		ops_left_in_file = true;
 		mode = _mode;
-
-        // Initialize the timestamp to creation date.
-        timestamp = new Date();
+		grantedLocks = new ArrayList<Lock>();
+		grantedFileLocks = new ArrayList<RecordLockTree>();
 	}
 
 	public void end(){
@@ -62,16 +73,17 @@ public class Transaction extends ArrayList<Operation> {
     /* @summary
      * This getter returns the current timestamp.
      */
+    /*
     public Date getTimestamp(){
         return timestamp;
-    }
+    }*/
 
 
 
     /* @summary
      * This sets the transaction's timestamp.
      */
-    public void setTimestamp(Date sourceTime){
+    /*public void setTimestamp(Date sourceTime){
         timestamp = sourceTime;
-    }
+    }*/
 }

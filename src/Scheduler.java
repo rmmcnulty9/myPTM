@@ -1,8 +1,9 @@
 import java.util.ArrayList;
-import java.util.Date;
-import org.joda.time.DateTime;
-import org.joda.time.Instant;
+import java.util.Iterator;
 
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
+import org.joda.time.Interval;
 
 
 public class Scheduler extends Thread{
@@ -30,6 +31,9 @@ public class Scheduler extends Thread{
     //      (POSSIBLY HAVING MORE THAN ONE OP FROM THE SAME TXN QUEUED UP, BUT STILL BE ABLE
     //      TO DETECT DEAD LOCKS.
     private TransactionList deadlockList = null;
+    private Duration deadlockThreshold = null;
+
+    private LockTree lockTree = null;
 
     // This list is used to keep track of which txns still need to commit/abort.
     // TODO: (jmg199) THIS PROBABLY WON"T BE NEEDED. CLEAN UP AFTER TESTING.
@@ -65,6 +69,7 @@ public class Scheduler extends Thread{
         completed_ops = new ArrayList<Operation>();
         stalledTxns = new TransactionList();
         deadlockList = new TransactionList();
+        lockTree = new LockTree();
         txnMgrDoneFlag = false;
         dataMgrExitFlag = false;
         tm_task = tm;
@@ -85,12 +90,15 @@ public class Scheduler extends Thread{
 
 
         // Start the dead lock poll timer thread.
+        System.out.println("[Sched] Starting poll timer...");
         new PollTimer(500, this);
 
 
         // Check each transaction in the transaction list and try to schedule
         // the first operation for each.
         for (int index = 0; index < transactions.size(); ++index){
+			System.out.println("[Sched] Trying to schedule first op for txn [" + transactions.get(index).tid +
+					"] Total Ops:[" + String.valueOf(transactions.get(index).size()) + "]");
             scheduleNextOp(transactions.get(index));
         }
 
@@ -128,7 +136,7 @@ public class Scheduler extends Thread{
 
         // Notify the transaction manager that the scheduler is exiting.
         tm_task.setSchedExitFlag();
-        
+
         System.out.println("Scheduler is exiting...");
 	}
 
@@ -143,19 +151,33 @@ public class Scheduler extends Thread{
         // Add the first operation in the transaction if it exists.
         // Otherwise, add it to the blocked queue.
         if (sourceTxn.isEmpty()){
+            // TODO: (jmg199) REMOVE AFTER TESTING.
+            System.out.println("Transaction [" + String.valueOf(sourceTxn.tid) + "] has stalled.");
+
             // Add this transaction to the blocked queue.
             stalledTxns.add(sourceTxn);
         }
         else{
-            Operation nextOp = sourceTxn.get(0);
-            // TODO: (jmg199) UPDATE THE TIMESTAMP!!!!
-            //TODO: (rmmcnulty9) I assumed this isn't done. I got an outofmemoryerror here
-            deadlockList.add(sourceTxn);
+        	// Set the operation start time.
+        	sourceTxn.opStart = DateTime.now();
 
-            // TODO: (jmg199) Inspect the operation and see if we can get a lock for it.
-            // if (getLock(nextOp)){
-            scheduled_ops.add(nextOp);
-            //}
+        	if (sourceTxn.txnStart == null){
+        		// If this is the first op then set the txn start time.
+        		sourceTxn.txnStart = sourceTxn.opStart;
+        	}
+
+        	// Add the transaction to the deadlock list.
+        	// The txn must be added even if it is unable to acquire the lock
+        	// because it may be deadlocked with another transaction.
+        	deadlockList.add(sourceTxn);
+
+        	// Commits and aborts do no need locks.
+        	if ((sourceTxn.get(0).type != "C") && (sourceTxn.get(0).type != "A")) {
+        		// Attempt to get a lock for it.
+        		if (lockTree.acquireLock(sourceTxn)) {
+        			scheduled_ops.add(sourceTxn.get(0));
+        		}
+        	}
         }
     }
 
@@ -165,23 +187,38 @@ public class Scheduler extends Thread{
      * This method attempts to schedule operations for transactions that have stalled.
      */
     private void scheduleStalledTxns(){
-        // List to store the transactions that need to be removed.
-        TransactionList restartedTxns = new TransactionList();
+    	Iterator<Transaction> iter = stalledTxns.iterator();
+    	Transaction currTxn;
 
-        // Traverse the stalled transactions list and see if ops now exist to be scheduled.
-        for (int index = 0; index < stalledTxns.size(); ++index){
-            if (!stalledTxns.get(index).isEmpty()){
-                // Now that there is an op, schedule it and mark it for removal from the stalled queue.
-                scheduleNextOp(stalledTxns.get(index));
-                restartedTxns.add(stalledTxns.get(index));
-            }
-        }
+    	while (iter.hasNext()){
+    		currTxn = iter.next();
 
-        // Now that the entire stalled transactions list has been traversed
-        // remove the transactions that were restarted.
-        for (int index = 0; index < restartedTxns.size(); ++index){
-            stalledTxns.remove(restartedTxns.get(index));
-        }
+    		if (!currTxn.isEmpty()){
+    			// Now that there is an op, schedule it and remove the txn
+    			// from the stalled list.
+    			scheduleNextOp(currTxn);
+    			stalledTxns.removeByTID(currTxn.tid);
+    		}
+    	}
+
+        // TODO: (jmg199) THIS WAS THE OLD IMPLEMENTATION.  REMOVE AFTER TESTING THE ITERATOR IMPEMENTATION.
+        //// List to store the transactions that need to be removed.
+        //TransactionList restartedTxns = new TransactionList();
+
+        //// Traverse the stalled transactions list and see if ops now exist to be scheduled.
+        //for (int index = 0; index < stalledTxns.size(); ++index){
+        //    if (!stalledTxns.get(index).isEmpty()){
+        //        // Now that there is an op, schedule it and mark it for removal from the stalled queue.
+        //        scheduleNextOp(stalledTxns.get(index));
+        //        restartedTxns.add(stalledTxns.get(index));
+        //    }
+        //}
+
+        //// Now that the entire stalled transactions list has been traversed
+        //// remove the transactions that were restarted.
+        //for (int index = 0; index < restartedTxns.size(); ++index){
+        //    stalledTxns.remove(restartedTxns.get(index));
+        //}
     }
 
 
@@ -213,26 +250,57 @@ public class Scheduler extends Thread{
         Operation currOp = null;
 
         while(!completed_ops.isEmpty()){
-        	currOp = completed_ops.remove(0);
-        	
-            Transaction parentTxn = transactions.getByTID(currOp.tid);
+            // TODO: (jmg199) REMOVE AFTER TESTING.
+            System.out.println("[Sched] Completed ops size:[" + String.valueOf(completed_ops.size()) + "]");
 
-            // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.
-            if (!deadlockList.remove(parentTxn)){
-                System.out.println("[Sched] DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
+        	Transaction parentTxn;
+            // This needs to be synchronized because there is a race condition here
+            // where a completed op is removed, but the parent txn is not yet
+            // removed from the deadlock list when the poll timer fires.
+            synchronized(this){
+                currOp = completed_ops.remove(0);
+
+                parentTxn = transactions.getByTID(currOp.tid);
+
+                // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.
+                if (!deadlockList.remove(parentTxn)){
+                    System.out.println("[Sched] DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
+                }
+            }
+
+            if (deadlockThreshold == null){
+            	// Establish the deadlock threshold.
+            	Duration executionTime = (new Interval(parentTxn.opStart, DateTime.now())).toDuration();
+            	System.out.println("[Sched] Initial execution time: " + String.valueOf(executionTime.getMillis()));
+
+            	// Add a fudge factor to the execution time.
+            	executionTime = executionTime.plus((long)(executionTime.getMillis() * 0.5));
+            	System.out.println("[Sched] Fudged execution time: " + String.valueOf(executionTime.getMillis()));
+
+            	// Multiply by the number of concurrent transactions.
+            	executionTime = executionTime.withDurationAdded(executionTime.getMillis(), transactions.size());
+            	System.out.println("[Sched] Final deadlock execution time: " + String.valueOf(executionTime.getMillis()));
+
+            	// Store out newly calculated deadlockThreshold.
+            	deadlockThreshold = executionTime;
             }
 
             if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){
-                // This transaction has committed or aborted, so remove it from the transaction list.
-                if (!transactions.remove(parentTxn)){
+                // This transaction has committed or aborted, so release it's locks and
+            	// remove it from the transaction list.
+            	releaseLocks(parentTxn);
+
+                if (!transactions.removeByTID(parentTxn.tid)){
                     System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
                 }
             }
             else {
                 // Remove the operation from the transaction's operation list.
-                if (!parentTxn.remove(currOp)){
-                    System.out.println("[Sched] DID NOT REMOVE THE CURRENT OPERATION FROM THE PARENT TXN!");
-                }
+                parentTxn.remove(0);
+                // TODO: (jmg199) CLEANUP AFTER TESTING.
+                //if (!parentTxn.remove(currOp)){
+                //    System.out.println("[Sched] DID NOT REMOVE THE CURRENT OPERATION FROM THE PARENT TXN!");
+                //}
 
                 // Schedule the next operation in the parentTxn.
                 scheduleNextOp(parentTxn);
@@ -246,24 +314,39 @@ public class Scheduler extends Thread{
      * This method is used to check for dead lock conditions.
      */
     public void deadlockCheck(){
-        // TODO: (goldswjm) REMOVE AFTER TESTING.
-        System.out.println("[Sched] Made it back from the timer!");
+        // TODO: (jmg199) REMOVE AFTER TESTING.
+        System.out.println("[Sched] About to check for deadlocks!");
 
-        //new PollTimer(500, this);
+        if (deadlockThreshold != null){
+            // Traverse the deadlock queue looking for any overrun transactions.
+            Iterator<Transaction> iter = deadlockList.iterator();
+            Transaction currTxn;
 
-        // Create the reference date.
-        //Date now = new Date();
+            while (iter.hasNext()){
+            	currTxn = iter.next();
+            	Duration executionTime = (new Interval(currTxn.opStart, DateTime.now())).toDuration();
 
-        //// Traverse the deadlock queue looking for any overrun transactions.
-        //for (int index = 0; index < deadlockList.size(); ++index){
-        //    deadlockList.get(index).getTimestamp();
+            	// TODO: (jmg199) REMOVE AFTER TESTING.
+            	System.out.println("[Sched] Execution time for transaction [" + currTxn.tid + "]" + executionTime.toString() + ".");
 
-        //    // TODO: (jmg199) VARIABLE TO MAKE THIS COMPILE. REPLACE TEST WITH DEADLOCK THRESHOLD TEST.
-        //    boolean dummy = true;
-        //    if (dummy == false){
-        //        resolveDeadlock(deadlockList.get(index));
-        //    }
-        //}
+            	if (executionTime.isLongerThan(deadlockThreshold)){
+            		// TODO: (jmg199) REMOVE AFTER TESTING.
+            		System.out.println("[Sched] Deadlock detected on transaction [" + currTxn.tid + "]!");
+            		resolveDeadlock(currTxn);
+            	}
+            }
+            //for (int index = 0; index < deadlockList.size(); ++index){
+            //    //Duration executionTime = now.minus(deadlockList.get(index).opStart);
+            //
+
+            //    if (executionTime > deadlockThreshold){
+            //        System.out.println("[Sched] Deadlock detected! execTime:");
+            //        resolveDeadlock(deadlockList.get(index));
+            //    }
+            //}
+        }
+
+        new PollTimer(500, this);
     }
 
 
@@ -274,4 +357,106 @@ public class Scheduler extends Thread{
     private void resolveDeadlock(Transaction targetTxn){
         // TODO: (jmg199) IMPLEMENT WOUND-WAIT.
     }
+
+    
+
+    /*
+     *
+     */
+    public void releaseLocks(Transaction sourceTxn){
+    	// TODO: (jmg199) REMOVE AFTER TESTING.
+    	System.out.println("[Sched] Releasing all locks.");
+
+    	// If there are file locks, all pending record locks need to be checked
+    	// since they may
+    	//boolean triggerFullRecLockCheck = !sourceTxn.grantedFileLocks.isEmpty();
+    	ArrayList<RecordLockTree> fullRecLockCheckList = new ArrayList<RecordLockTree>();
+
+    	// Release the file locks.
+    	Iterator<RecordLockTree> fileLockIter = sourceTxn.grantedFileLocks.iterator();
+    	RecordLockTree currRecTree;
+    	Transaction queuedTxnGrantedLock;
+    	boolean hasPendingFileLocks = false;
+
+    	while (fileLockIter.hasNext()){
+    		currRecTree = fileLockIter.next();
+
+    		// Must be checked before releasing the file lock.
+    		hasPendingFileLocks = currRecTree.hasQueuedFileLocks();
+
+    		queuedTxnGrantedLock = currRecTree.releaseFileLock();
+
+    		if (queuedTxnGrantedLock != null){
+    			// There was a transaction waiting for the released
+    			// lock and it was able to get it.
+
+    			// Reset the operation start time since we now know
+    			// that it has the lock.
+    			queuedTxnGrantedLock.opStart = DateTime.now();
+
+    			// Send the txn's operation to the DM.
+            	scheduled_ops.add(sourceTxn.get(0));
+    		}
+    		else if(hasPendingFileLocks){
+    			// We had a pending file lock which was not granted. Therefore
+    			// at least one record lock was waiting (and had precedence) for
+    			// the file lock to be released. Therefore trigger a full
+    			// check of all queued record lock requests in this tree.
+    			fullRecLockCheckList.add(currRecTree);
+    		}
+    	}
+
+
+    	// Now release the record locks.
+    	Iterator<Lock> iter = sourceTxn.grantedLocks.iterator();
+    	Lock currLock;
+
+    	while (iter.hasNext()){
+    		currLock = iter.next();
+    		queuedTxnGrantedLock = currLock.release(sourceTxn);
+
+    		if (queuedTxnGrantedLock != null){
+    			// There was a transaction waiting for the released
+    			// lock and it was able to get it.
+
+    			// Reset the operation start time since we now know
+    			// that it has the lock.
+    			queuedTxnGrantedLock.opStart = DateTime.now();
+
+    			// Send the txn's operation to the DM.
+            	scheduled_ops.add(sourceTxn.get(0));
+    		}
+    	}
+
+
+    	// Now check if file locks were released that were flagged as having
+    	// record locks which need to be granted.
+    	if (!fullRecLockCheckList.isEmpty()){
+    		Iterator<RecordLockTree> fullRecLockCheckIter = fullRecLockCheckList.iterator();
+    		Iterator<Lock> lockIter;
+
+    		while (fullRecLockCheckIter.hasNext()){
+    			currRecTree = fullRecLockCheckIter.next();
+
+    			lockIter = currRecTree.queuedRecLockList.iterator();
+
+    			while (lockIter.hasNext()){
+    				currLock = lockIter.next();
+
+    				currLock.attemptAcquireForNextQueuedTxn();
+    			}
+    		}
+		}
+    }
+
+
+
+    /* @summary
+     * This method attempts to get the necessary locks for the operation.
+     */
+    //private boolean getLock(Transaction targetTxn){
+    //	// TODO: (jmg199) FINISH THE getLock() method.
+    //
+    //	return true;
+    //}
 }

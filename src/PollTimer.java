@@ -37,7 +37,7 @@ public class PollTimer{
 
 
         public void run() {
-            System.out.format("Time's up!%n");
+            System.out.format("[Poll Timer] Time's up!%n");
             sched_task.deadlockCheck();
             timer.cancel(); //Terminate the timer thread
         }
