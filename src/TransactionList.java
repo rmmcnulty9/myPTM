@@ -1,7 +1,7 @@
-import java.util.*;
+import java.util.concurrent.*;
 
 
-public class TransactionList extends ArrayList<Transaction>{
+public class TransactionList extends CopyOnWriteArrayList<Transaction>{
     /**
 	 *
 	 */

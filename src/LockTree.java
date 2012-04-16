@@ -1,4 +1,111 @@
+import java.util.TreeMap;
 
+
+/*
+ *
+ */
 public class LockTree {
+	// This tree organizes the locks by filename.
+	private TreeMap<String,RecordLockTree> fileTree = null;
+	//private TreeMap<String,TreeMap<Integer, Lock>> fileTree = null;
 
+	
+	/*
+	 * Class ctor.
+	 */
+	public LockTree(){
+		fileTree = new TreeMap<String, RecordLockTree>();
+	}
+
+
+	/* @summary
+	 * This method attempts to acquire the lock for the next operation
+	 * in the target transaction.
+	 *
+	 * @return
+	 * This method returns true if the lock was successfully acquired.
+	 *
+	 * @postcondition
+	 * The transaction has either acquired its lock or is queued to
+	 * receive it when it becomes available.
+	 */
+	public boolean acquireLock(Transaction targetTxn){
+		Operation currOp = targetTxn.get(0);
+		Lock targetLock = null;
+		
+		RecordLockTree recordTree = fileTree.get(currOp.filename);
+
+		if (recordTree == null){
+			// No locks yet exist for this file.
+			recordTree = new RecordLockTree();
+
+			// Add the Record tree to the file tree.
+			fileTree.put(currOp.filename, recordTree);
+
+			if (currOp.type == "D"){
+				// Deletes occur at the file level. As twisted as this sounds, the
+				// record tree contains locks for all records in a file, therefore
+				// when locking a file the transaction doing the delete is stored
+				// in the record tree.
+				
+				// Directly acquire the lock because the tree was just created (i.e. empty).
+				recordTree.acquireFileLock(targetTxn);
+				
+				// Store the record lock tree in the Txn so that the file lock can
+				// be released quickly.
+				targetTxn.grantedFileLocks.add(recordTree);
+				
+				return true;
+			}
+			else {
+				// Create the record lock.
+				targetLock = new Lock();
+
+				// Insert it into the record tree.
+				recordTree.put(currOp.record.ID, targetLock);
+
+				// Attempt to acquire the lock for the txn. Return whether it
+				// actually gets it now.
+				return targetLock.attemptAcquire(targetTxn);
+			}
+		}
+		else{
+			// TODO: (jmg199) REMOVE AFTER TESTING.
+			System.out.println("[Sched] OPERATION TYPE [" + currOp.type + "]");
+
+			if (currOp.type.equals("D")){
+				// Deletes occur at the file level. As twisted as this sounds, the
+				// record tree contains locks for all records in a file, therefore
+				// when locking a file the transaction doing the delete is stored
+				// in the record tree.
+				if (recordTree.hasFileLock(targetTxn)){
+					// Already have the lock.
+					return true;
+				}
+				else {
+					return recordTree.attemptAcquireFileLock(targetTxn);
+				}
+			}
+			else {
+				if (recordTree.hasFileLock(targetTxn)){
+					// Already have the lock. The record lock is not necessary.
+					return true;
+				}
+				else {
+					targetLock = recordTree.get(Integer.valueOf(currOp.val));
+
+					if (targetLock == null){
+						targetLock = new Lock();
+
+						// Insert it into the record tree.
+						recordTree.put(Integer.valueOf(currOp.val), targetLock);
+					}
+
+					// Attempt to acquire the lock for the txn. Return whether it
+					// actually gets it now.
+					return targetLock.attemptAcquire(targetTxn);
+				}
+			}
+		}
+	}
 }
