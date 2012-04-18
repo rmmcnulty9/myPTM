@@ -778,10 +778,7 @@ public Page loadPage(DataFile df, int tid, int bid){
 //}
 
 public boolean flushPage(DataFile df, Page page_in_buffer){	
-	if(page_in_buffer.block_id != df.getPIDIndexByPID(page_in_buffer.page_id)){
-		System.out.println("Block IDs are different.");
-		System.exit(0);
-	}
+	page_in_buffer.block_id = df.getPIDIndexByPID(page_in_buffer.page_id);
 
 	try {
 		df.raf.seek(0);

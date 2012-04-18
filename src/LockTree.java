@@ -32,12 +32,7 @@ public class LockTree {
 	public boolean acquireLock(Transaction targetTxn){
 		Operation currOp = targetTxn.get(0);
 		Lock targetLock = null;
-		//Then the op does not need a lock
-		if(currOp.filename==null){
-			System.out.println(currOp.type);
-//			System.exit(0);
-			return true;
-		}
+
 		RecordLockTree recordTree = fileTree.get(currOp.filename);
 
 		if (recordTree == null){
