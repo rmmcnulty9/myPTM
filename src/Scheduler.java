@@ -61,7 +61,7 @@ public class Scheduler extends Thread{
      * @param   _search_method - Search method that the DM should use to find the record.
      */
 	public Scheduler(TranscationManager tm, TransactionList _sourceTransactions, int _buffer_size, String _search_method){
-        // Init data memebers.
+        // Init data members.
 		buffer_size = _buffer_size;
 		search_method = _search_method;
 		transactions = _sourceTransactions;
@@ -91,7 +91,7 @@ public class Scheduler extends Thread{
 
         // Start the dead lock poll timer thread.
         System.out.println("[Sched] Starting poll timer...");
-        new PollTimer(500, this);
+        new PollTimer(20, this);
 
 
         // Check each transaction in the transaction list and try to schedule
@@ -108,6 +108,14 @@ public class Scheduler extends Thread{
             scheduleStalledTxns();
 
             processCompletedOps();
+            
+            // Give the timer thread a chance to run.
+            //try {
+			//	sleep(2);
+			//} catch (InterruptedException e) {
+			//	// TODO Auto-generated catch block
+			//	e.printStackTrace();
+			//}
 
             // TODO: (jmg199) CLEAN UP AFTER TESTING.
 			//if(!transactions.get(0).isEmpty()){
@@ -172,7 +180,7 @@ public class Scheduler extends Thread{
         	deadlockList.add(sourceTxn);
 
         	// Commits and aborts do no need locks.
-        	if ((sourceTxn.get(0).type != "C") && (sourceTxn.get(0).type != "A")) {
+        	if (!(sourceTxn.get(0).type.equals("C")) && (!sourceTxn.get(0).type.equals("A"))) {
         		// Attempt to get a lock for it.
         		if (lockTree.acquireLock(sourceTxn)) {
         			scheduled_ops.add(sourceTxn.get(0));
@@ -346,7 +354,7 @@ public class Scheduler extends Thread{
             //}
         }
 
-        new PollTimer(500, this);
+        new PollTimer(20, this);
     }
 
 
