@@ -1,67 +1,86 @@
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
+import java.io.Writer;
 import java.util.ArrayList;
 
 
 public class DataFile{
 	public String filename;
-	public FileOutputStream fos;
-	public ByteArrayOutputStream baos;
-	public ObjectOutputStream outputStream;
-	public FileInputStream fis;
-	public BufferedInputStream bis;
-	public ObjectInputStream inputStream;
+//	public FileOutputStream fos;
+//	public ByteArrayOutputStream baos;
+//	public ObjectOutputStream outputStream;
+//	public FileInputStream fis;
+//	public BufferedInputStream bis;
+//	public ObjectInputStream inputStream;
+	
+//	public BufferedReader br;
+//	public BufferedWriter bw;
+	
+	public RandomAccessFile raf;
+	
 	public File f;
+	public ArrayList<Integer> page_sizes;
 	
 	/*
 	 * @summary The page ids indexed by block ids
 	 */
 	private ArrayList <Integer> page_ids;
 	
+	
 	public DataFile(String _fn){
 		filename = _fn;
+		//Create the File
 		f = new File(filename);
 		try {
 			f.createNewFile();
+			raf = new RandomAccessFile(f,"rw");
 		} catch (IOException e1) {
 			e1.printStackTrace();
 			System.exit(0);
 		}
-		try {
-			fos = new FileOutputStream(f);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			System.exit(0);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(0);
-		}
-		try {
-			fis = new FileInputStream(f);
-			bis = new BufferedInputStream(fis);
-//			inputStream = new ObjectInputStream(bis);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			System.exit(0);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(0);
-		}
+		//Outputting
+//		try {
+////			fos = new FileOutputStream(f);
+//			bw = new BufferedWriter(new FileWriter(f));
+//			
+//		} catch (FileNotFoundException e) {
+//			e.printStackTrace();
+//			System.exit(0);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//			System.exit(0);
+//		}
+//		try {
+////			fis = new FileInputStream(f);
+//			br = new BufferedReader(new FileReader(f));
+//		} catch (FileNotFoundException e) {
+//			e.printStackTrace();
+//			System.exit(0);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//			System.exit(0);
+//		}
 		
 		page_ids = new ArrayList<Integer>();
+		page_sizes = new ArrayList<Integer>();
 		
 	}
 	
 	public int getPageIDByBlockID(int bid){
-		if(bid>= page_ids.size()){
+		if(bid>= page_ids.size() || bid<0){
 			return -1;
 		}
 		return page_ids.get(bid).intValue();
@@ -76,10 +95,14 @@ public class DataFile{
 	
 	public boolean close(){
 		try {
-			if(null!=inputStream)inputStream.close();
-			if(null!=outputStream)outputStream.close();
-			if(null!=fis)fis.close();
-			if(null!=fos)fos.close();
+//			if(null!=inputStream)inputStream.close();
+//			if(null!=outputStream)outputStream.close();
+//			if(null!=fis)fis.close();
+//			if(null!=fos)fos.close();
+//			if(null!=bw)bw.close();
+//			if(null!=br)br.close();
+			if(null!=raf)raf.close();
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

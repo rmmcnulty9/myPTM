@@ -13,8 +13,17 @@ public class Record implements java.io.Serializable{
 		ClientName = c;
 		Phone = p;
 	}
-	
+	//Parses a record from it's own toString()
+	public Record(String s) {
+		
+		String parts[] = s.split(" ");
+		ID = Integer.parseInt(parts[0]);
+		ClientName = parts[1];
+		Phone = parts[2];
+		
+	}
+
 	public String toString(){
-		return "["+ID+" "+ClientName+" "+Phone+"]";
+		return ID+" "+ClientName+" "+Phone+"\n";
 	}
 }

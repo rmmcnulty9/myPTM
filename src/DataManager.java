@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
@@ -281,13 +282,13 @@ public class DataManager extends Thread {
 		
 		// Create temp file with double the number of block in df
 		File tmp;
-		try {
+//		try {
 			DataFile new_df = new DataFile(df.filename+"_TEMP");
 			new_df.initializeDataFileSize(df.BlockCount() * 2);
 			data_files.add(new_df);
-			ByteArrayOutputStream bos = new ByteArrayOutputStream(Page.PAGE_SPACING_BYTES);
+			ByteArrayOutputStream bos = new ByteArrayOutputStream(Page.PAGE_SIZE_BYTES);
 			
-			new_df.outputStream = new ObjectOutputStream(bos);
+//			new_df.outputStream = new ObjectOutputStream(bos);
 			for(int i=0;i<df.BlockCount();i++){
 				if(df.getPageIDByBlockID(i)==-1)continue;
 				Page p = loadPage(df,tid,i);
@@ -357,20 +358,23 @@ public class DataManager extends Thread {
 				p.file_of_origin = df.filename;
 				flushPage(new_df, p);
 			}
-			//Reinitialize the File Streams
-			new_df.fis.close();
-			new_df.bis.close();
-			new_df.f = new File(new_df.filename);
-			boolean r = new_df.f.exists();
-			new_df.fis = new FileInputStream(new_df.f);
-//			df.bis = new BufferedInputStream(df.fis);
-			new_df.fos.close();
-			new_df.fos = new FileOutputStream(new_df.f);
-			
-		} catch (IOException e) {
-			e.printStackTrace();
+			//TODO Reinitialize the File Streams
+			System.out.println("Not done yet!");
 			System.exit(0);
-		}
+//			new_df.fis.close();
+//			new_df.bis.close();
+//			new_df.f = new File(new_df.filename);
+//			boolean r = new_df.f.exists();
+//			new_df.fis = new FileInputStream(new_df.f);
+////			df.bis = new BufferedInputStream(df.fis);
+//			new_df.fos.close();
+//			new_df.fos = new FileOutputStream(new_df.f);
+			
+//		} 
+//		catch (IOException e) {
+//			e.printStackTrace();
+//			System.exit(0);
+//		}
 		return next_pid;
 
 //		return next_global_page_id+df.BlockCount();
@@ -532,7 +536,8 @@ public class DataManager extends Thread {
     	Page p_mid = null;
     	//Is page in buffer
     	for(int i=0;i<buffer.size();i++){
-    		if(buffer.get(i).block_id==bid_mid){
+    		if(buffer.get(i).page_id==df.getPageIDByBlockID(bid_mid)){
+    			buffer.get(i).block_id = bid_mid;
     			p_mid = buffer.get(i);
     			break;
     		}
@@ -637,7 +642,8 @@ private int splitPage(DataFile df, Page old_p, Record r, int next_pid, int tid, 
 	
 	
 	addToBuffer(new_p);
-	
+//	flushPage(df,old_p);
+//	flushPage(df,new_p);
 	
 	return next_pid+1;
 }
@@ -669,34 +675,71 @@ public DataFile getDataFileByName(String fn){
 	return null;
 }
 
+//TODO Rewrite to read in text and fill in a Page object
 public Page loadPage(DataFile df, int tid, int bid){
-	if(bid<0 || bid>df.BlockCount()|| -1==df.getPageIDByBlockID(bid)) return null;
-	int bid_ctr=0;
-	try {
-
-		df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-		while(df.inputStream.available()>0){
-			Page p = (Page)df.inputStream.readObject();
-			if(bid_ctr==bid){
-				if(p.block_id==bid){
-					System.out.println("Both block ids match");
+	if(bid<0 || bid>=df.BlockCount()||-1==df.getPageIDByBlockID(bid)) return null;
+	
+	try{	
+		String line_in_file = "dumby";
+		int line_ctr=0;
+		while(null!=line_in_file){
+			
+			line_in_file = df.raf.readLine();
+			
+			if(line_in_file!=null && line_ctr%(16)==0){
+				//Found page
+				String header_parts[] = line_in_file.split(" ");
+				if(header_parts.length!=4){
+					System.out.println("Error:"+line_in_file);
+					System.exit(0);
 				}
-				return p;
+				//get rest of page
+				String records[] = new String[Page.RECORDS_PER_PAGE];
+				for(int i=0;i<records.length;i++){
+					records[i] = df.raf.readLine();
+					line_ctr++;
+				}
+				return new Page(df.filename, header_parts[1], header_parts[3], records);
 			}
-			bid_ctr++;
+			line_ctr++;
 		}
-	}catch (EOFException e) {
-		//This means there is no page
 		return null;
-	}catch (IOException e) {
-		e.printStackTrace();
-		System.exit(0);
-	} catch (ClassNotFoundException e) {
+	} catch (IOException e) {
 		e.printStackTrace();
 		System.exit(0);
 	}
+	
 	return null;
 }
+
+//public Page loadPage(DataFile df, int tid, int bid){
+//	if(bid<0 || bid>df.BlockCount()|| -1==df.getPageIDByBlockID(bid)) return null;
+//	int bid_ctr=0;
+//	try {
+//
+//		df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
+//		while(df.inputStream.available()>0){
+//			Page p = (Page)df.inputStream.readObject();
+//			if(bid_ctr==bid){
+//				if(p.block_id==bid){
+//					System.out.println("Both block ids match");
+//				}
+//				return p;
+//			}
+//			bid_ctr++;
+//		}
+//	}catch (EOFException e) {
+//		//This means there is no page
+//		return null;
+//	}catch (IOException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	} catch (ClassNotFoundException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	}
+//	return null;
+//}
 
 // Old loadPage using seek. Might not work
 //public Page loadPage(DataFile df, int tid, int block_id){
@@ -734,56 +777,152 @@ public Page loadPage(DataFile df, int tid, int bid){
 //	return null;
 //}
 
-public boolean flushPage(DataFile df, Page page_in_buffer){
-	int bid_ctr=0;
-	try {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		df.outputStream = new ObjectOutputStream(bos);
-		System.out.println(df.fis.getChannel().position()+" "+df.fis.getChannel().size());
-		if(df.fis.getChannel().size()>0){
-			try {
-				df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-			} catch (EOFException e) {
-				df.outputStream.writeObject(page_in_buffer);
-				df.outputStream.flush();
-				bos.writeTo(df.fos);
-				return true;
-			}catch (Exception e){
-				e.printStackTrace();
-				System.exit(0);
-			}
-		}else{
-			df.outputStream.writeObject(page_in_buffer);
-			df.outputStream.flush();
-			bos.writeTo(df.fos);
-			return true;
-		}
-		while(df.inputStream.available()>0){
-			Page page_in_file = (Page)df.inputStream.readObject();
-			if(page_in_file.block_id == page_in_buffer.block_id || page_in_buffer.block_id==bid_ctr){
-				df.outputStream.writeObject(page_in_buffer);
-				df.outputStream.flush();
-				bos.writeTo(df.fos);
-//			buffer.remove(page_in_buffer);
-				page_in_file.block_id++;
-				return flushPage(df, page_in_file);
-			}
-			bid_ctr++;
-		}
-		df.outputStream.writeObject(page_in_buffer);
-		return true;
-	}catch (EOFException e) {
-		e.printStackTrace();
-		System.exit(0);
-	}catch (IOException e) {
-		e.printStackTrace();
-		System.exit(0);
-	} catch (ClassNotFoundException e) {
-		e.printStackTrace();
+public boolean flushPage(DataFile df, Page page_in_buffer){	
+	if(page_in_buffer.block_id != df.getPIDIndexByPID(page_in_buffer.page_id)){
+		System.out.println("Block IDs are different.");
 		System.exit(0);
 	}
+
+	try {
+		df.raf.seek(0);
+		String line_in_file = "dumby";
+		int line_ctr=0, bid_ctr=0;
+		while(null!=line_in_file){
+			long fd_ptr_before = df.raf.getFilePointer();
+			line_in_file = df.raf.readLine();
+			
+			
+			if(line_in_file!=null && line_ctr%16==0){
+				//Beginning of page!
+				String header_parts[] = line_in_file.split(" ");
+				if(header_parts.length!=4){
+					System.out.println("Error:"+line_in_file);
+					System.exit(0);
+				}
+				if(Integer.parseInt(header_parts[3])==page_in_buffer.block_id || page_in_buffer.block_id==bid_ctr){
+					//get rest of page
+					String records[] = new String[Page.RECORDS_PER_PAGE];
+					for(int i=0;i<records.length;i++){
+						records[i] = df.raf.readLine();
+						line_ctr++;
+					}
+					Page page_in_file = new Page(df.filename, header_parts[1], header_parts[3], records);
+					//Write
+					df.raf.seek(fd_ptr_before);
+					
+					//Some Pages may have more bytes than others, here we pad with whitespace (remove and replace the '\n' though)
+					
+					String toWrite = page_in_buffer.toString();
+					toWrite = toWrite.substring(0, toWrite.length()-1);
+					toWrite = String.format("%-"+(Page.PAGE_SIZE_BYTES-1)+"s",toWrite);
+					toWrite+="\n";
+					int new_size = toWrite.getBytes().length;
+					df.raf.writeBytes(toWrite);
+					
+					//If not the same page, shift the old page down in file
+					if(page_in_file.page_id != page_in_buffer.page_id){
+						if(page_in_file.block_id == page_in_buffer.block_id){
+							page_in_file.block_id++;
+						}
+						return flushPage(df, page_in_file);
+					}
+					return true;
+				}
+				bid_ctr++;
+			}
+			line_ctr++;
+		}
+		//Write
+		String toWrite = page_in_buffer.toString();
+		toWrite = toWrite.substring(0, toWrite.length()-1);
+		toWrite = String.format("%-"+(Page.PAGE_SIZE_BYTES-1)+"s",toWrite);
+		toWrite+="\n";
+		df.raf.writeBytes(toWrite);
+		return true;
+	} catch (IOException e) {
+		e.printStackTrace();
+	}
+	
 	return false;
 }
+
+//public boolean flushPage(DataFile df, Page page_in_buffer){
+//	int bid_ctr=0;
+//	try {
+//		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+//		df.outputStream = new ObjectOutputStream(bos);
+////		df.fos.getChannel().position(0);
+//		System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
+//		System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
+//		
+//		try {
+////			df.fis.getChannel().position(0);
+//			df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
+//			df.fis.getChannel().position(0);
+//			
+//		} catch (EOFException e) {
+//			byte o[] = toBytes(page_in_buffer);
+//			df.outputStream.writeObject(page_in_buffer);
+//			df.outputStream.flush();
+//			bos.writeTo(df.fos);
+//			System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
+//			System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
+//			return true;
+//		}catch (Exception e){
+//			e.printStackTrace();
+//			System.exit(0);
+//		}
+//
+//		System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
+//		System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
+//		while(df.fis.getChannel().position()<df.fis.getChannel().size()){
+////			df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
+//			System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
+//			System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
+//
+//			Page page_in_file = (Page)df.inputStream.readObject();
+//			Page p2 = (Page)df.inputStream.readObject();
+//
+//			byte [] b = toBytes(page_in_file);
+//			df.fis.getChannel().position(b.length);
+//
+//			System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
+//			System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
+//			
+//			if(page_in_file.block_id == page_in_buffer.block_id || page_in_buffer.block_id==bid_ctr){
+//				df.outputStream.writeObject(page_in_buffer);
+//				df.outputStream.flush();
+////				df.fos.getChannel().position(df.fis.getChannel().position());
+//				bos.writeTo(df.fos);
+//				System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
+//				System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
+////			buffer.remove(page_in_buffer);
+//				if(page_in_file.page_id != page_in_buffer.page_id){
+//					if(page_in_file.block_id == page_in_buffer.block_id){
+//						page_in_file.block_id++;
+//					}
+//					return flushPage(df, page_in_file);
+//				}
+//				return true;
+//			}
+//			bid_ctr++;
+//		}
+//		df.outputStream.writeObject(page_in_buffer);
+//		df.outputStream.flush();
+//		bos.writeTo(df.fos);
+//		return true;
+//	}catch (EOFException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	}catch (IOException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	} catch (ClassNotFoundException e) {
+//		e.printStackTrace();
+//		System.exit(0);
+//	}
+//	return false;
+//}
 
 // Old flushPage function. Might not work all the time
 ///**
@@ -885,4 +1024,41 @@ public boolean flushPage(DataFile df, Page page_in_buffer){
 //
 //	return false;
 //}
+
+/** Converts an object to an array of bytes . Uses the Logging
+utilities in j2sdk1.4 for
+* reporting exceptions.
+* @param object the object to convert.
+* @return the associated byte array.
+*/
+public static byte[] toBytes(Object object){
+ByteArrayOutputStream baos = new ByteArrayOutputStream();
+try{
+ObjectOutputStream oos = new ObjectOutputStream(baos);
+oos.writeObject(object);
+}catch(java.io.IOException ioe){
+System.exit(0);
+}
+return baos.toByteArray();
+}
+
+/** Converts an array of bytes back to its constituent object. The
+input array is assumed to
+* have been created from the original object. Uses the Logging
+utilities in j2sdk1.4 for
+* reporting exceptions.
+* @param bytes the byte array to convert.
+* @return the associated object.
+*/
+public static Object toObject(byte[] bytes){
+Object object = null;
+try{
+object = new ObjectInputStream(new ByteArrayInputStream(bytes)).readObject();
+}catch(IOException ioe){
+	System.exit(0);
+}catch(ClassNotFoundException cnfe){
+	System.exit(0);
+}
+return object;
+} 
 }
