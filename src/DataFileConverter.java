@@ -31,7 +31,7 @@ public class DataFileConverter {
 //			inputStream = new ObjectInputStream(new BufferedInputStream(fis));
 			int ctr=0;
 			while(true){
-				long pos = Page.PAGE_SPACING_BYTES*ctr;
+				long pos = Page.PAGE_SIZE_BYTES*ctr;
 				fis.getChannel().position(pos);
 				inputStream = new ObjectInputStream(new BufferedInputStream(fis));
 				p = (Page)inputStream.readObject();

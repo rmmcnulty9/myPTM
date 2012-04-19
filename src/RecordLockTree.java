@@ -45,7 +45,8 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	 * has a file lock.
 	 */
 	public boolean hasFileLock(Transaction targetTransaction){
-		return (txnGrantedFileLock == targetTransaction);
+//		return (txnGrantedFileLock == targetTransaction);
+		return (txnGrantedFileLock.equals(targetTransaction));
 	}
 
 
@@ -137,7 +138,8 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	public boolean isBlockedByFileLock(Transaction targetTransaction){
 		if (txnGrantedFileLock != null){
 			// It's only blocked if the lock holder isn't the target transaction.
-			if (targetTransaction == txnGrantedFileLock){
+//			if (targetTransaction == txnGrantedFileLock){
+			if (targetTransaction.equals(txnGrantedFileLock)){
 				return false;
 			}
 			else {

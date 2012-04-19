@@ -7,7 +7,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	 */
 	private static final long serialVersionUID = -2938553534535400394L;
 	public static final int RECORDS_PER_PAGE = 15;
-	public static final int PAGE_SPACING_BYTES = 2048;
+	public static final int PAGE_SIZE_BYTES = 512;
 
 	String file_of_origin;
 	
@@ -26,7 +26,17 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		dirtied_by = new ArrayList <Integer>();
 		fixed_by = new ArrayList <Integer>();
 		LSN = LSN;
-		stableLSN = 0;
+		stableLSN = 0;		
+	}
+
+	public Page(String f, String pid, String bid, String[] records) {
+		file_of_origin = f;
+		page_id = Integer.parseInt(pid);
+		block_id = Integer.parseInt(bid);
+		
+		for(int i=0;i<records.length;i++){
+			if(!records[i].contains("~~ FREE ~~")) this.add(new Record(records[i]));
+		}
 	}
 
 	public boolean isFull(){
@@ -50,7 +60,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		if(r==null){
 			System.out.println("null!!!");
 		}
-		if ((super.size()+1)> RECORDS_PER_PAGE) return false;
+		if ((this.size()+1)> RECORDS_PER_PAGE) return false;
 		return super.add(r);
 	}
 	
@@ -65,9 +75,13 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	}
 	
 	public String toString(){
-		String s="File "+file_of_origin+" Page "+page_id+" Block "+block_id+"\n";
-		for(int i=0;i<this.size();i++){
-			s+=	"Record "+i+": "+this.get(i).toString()+"\n";
+		String s="Page "+page_id+" Block "+block_id+"\n";
+		for(int i=0;i<RECORDS_PER_PAGE;i++){
+			if(i>=this.size()){
+				s+= "~~ FREE ~~\n";
+			}else{
+				s+=	this.get(i).toString();
+			}
 		}
 		return s;
 	}

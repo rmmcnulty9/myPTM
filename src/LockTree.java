@@ -32,7 +32,7 @@ public class LockTree {
 	public boolean acquireLock(Transaction targetTxn){
 		Operation currOp = targetTxn.get(0);
 		Lock targetLock = null;
-		
+
 		RecordLockTree recordTree = fileTree.get(currOp.filename);
 
 		if (recordTree == null){
