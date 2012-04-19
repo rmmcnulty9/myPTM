@@ -30,12 +30,12 @@ public class Lock{
      */
     public boolean attemptAcquire(Transaction sourceTxn){
     	// TODO: (jmg199) REMOVE AFTER TESTING.
-    	System.out.format("[Lock] Attempting to acquire lock for txn ID [" + sourceTxn.tid + "]%n");
+    	System.out.format("[Lock] Attempting to acquire lock for txn ID [" + sourceTxn.tid + "]");
     	
     	if (canAcquire(sourceTxn)){
     		acquire(sourceTxn);
     		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.format("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]%n");
+    		System.out.format("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]");
 
     		return true;
     	}
@@ -48,7 +48,7 @@ public class Lock{
             parentRecLockTree.queuedRecLockList.add(this);
             
     		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.format("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]%n");
+    		System.out.format("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]");
     		
             return false;
         }

@@ -15,7 +15,7 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	// More than one transaction can be waiting to delete the file.
 	private TransactionList queuedList = null;
 
-	public int grantedRecLockCount;
+	public CopyOnWriteArrayList<Lock> grantedRecLockList = null;
 	public CopyOnWriteArrayList<Lock> queuedRecLockList = null;
 
 
@@ -24,7 +24,7 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	 */
 	public RecordLockTree(){
 		queuedList = new TransactionList();
-		grantedRecLockCount = 0;
+		grantedRecLockList = new CopyOnWriteArrayList<Lock>();
 		queuedRecLockList = new CopyOnWriteArrayList<Lock>();
 	}
 
@@ -56,7 +56,7 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	 */
 	public boolean canAcquireFileLock(){
 		// Nothing has the lock, nothing is waiting for the lock, and there are no record locks.
-		return (txnGrantedFileLock == null) && (queuedList.size() == 0) && (grantedRecLockCount == 0);
+		return (txnGrantedFileLock == null) && (queuedList.size() == 0) && (grantedRecLockList == 0);
 	}
 
 

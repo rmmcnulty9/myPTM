@@ -67,23 +67,4 @@ public class Transaction extends ArrayList<Operation> {
     public Integer id(){
         return (Integer)tid;
     }
-
-
-
-    /* @summary
-     * This getter returns the current timestamp.
-     */
-    /*
-    public Date getTimestamp(){
-        return timestamp;
-    }*/
-
-
-
-    /* @summary
-     * This sets the transaction's timestamp.
-     */
-    /*public void setTimestamp(Date sourceTime){
-        timestamp = sourceTime;
-    }*/
 }
