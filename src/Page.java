@@ -25,14 +25,18 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		block_id = b;
 		dirtied_by = new ArrayList <Integer>();
 		fixed_by = new ArrayList <Integer>();
-		LSN = LSN;
+		LSN = _LSN;
 		stableLSN = 0;		
 	}
 
-	public Page(String f, String pid, String bid, String[] records) {
+	public Page(String f, String pid, String bid, String[] records, int _LSN) {
 		file_of_origin = f;
 		page_id = Integer.parseInt(pid);
 		block_id = Integer.parseInt(bid);
+		dirtied_by = new ArrayList <Integer>();
+		fixed_by = new ArrayList <Integer>();
+		LSN = _LSN;
+		stableLSN = 0;		
 		
 		for(int i=0;i<records.length;i++){
 			if(!records[i].contains("~~ FREE ~~")) this.add(new Record(records[i]));

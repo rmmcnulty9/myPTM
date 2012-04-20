@@ -172,7 +172,7 @@ public class Scheduler extends Thread{
         	deadlockList.add(sourceTxn);
 
         	// Commits and aborts do no need locks.
-        	if (!(sourceTxn.get(0).type.equals("C")) && (!sourceTxn.get(0).type.equals("A"))) {
+        	if ((!sourceTxn.get(0).type.equals("C")) && (!sourceTxn.get(0).type.equals("A"))) {
         		// Attempt to get a lock for it.
         		if (lockTree.acquireLock(sourceTxn)) {
         			scheduled_ops.add(sourceTxn.get(0));

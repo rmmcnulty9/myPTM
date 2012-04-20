@@ -112,7 +112,6 @@ public class Lock{
     			// Now that this has been granted remove it from the tree's
     			// queued record lock list.
     			for (int i = 0; i < parentRecLockTree.queuedRecLockList.size(); i++){
-    				//TODO Jeff correct me if I'm wrong
 //    				if(parentRecLockTree.queuedRecLockList.get(i) == this){
     				if(parentRecLockTree.queuedRecLockList.get(i).equals(this)){
     					// TODO: (jmg199) Should probably create an ID if I can find the time.
