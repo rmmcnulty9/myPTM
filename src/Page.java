@@ -8,19 +8,18 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	private static final long serialVersionUID = -2938553534535400394L;
 	public static final int RECORDS_PER_PAGE = 15;
 	public static final int PAGE_SIZE_BYTES = 512;
-
-	String file_of_origin;
 	
 //	page ID, dirty bit, fix count, page LSN, Stable-LSN and page number
 	int page_id;
 	int block_id;
+	int df_id;
 	ArrayList <Integer> dirtied_by;
 	ArrayList <Integer> fixed_by;
 	int LSN;
 	int stableLSN;
 
-	public Page(String f, int p, int b, int _LSN){
-		file_of_origin = f;
+	public Page(int dfid, int p, int b, int _LSN){
+		df_id= dfid;
 		page_id = p;
 		block_id = b;
 		dirtied_by = new ArrayList <Integer>();
@@ -29,8 +28,8 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		stableLSN = 0;		
 	}
 
-	public Page(String f, String pid, String bid, String[] records, int _LSN) {
-		file_of_origin = f;
+	public Page(int dfid, String pid, String bid, String[] records, int _LSN) {
+		df_id= dfid;
 		page_id = Integer.parseInt(pid);
 		block_id = Integer.parseInt(bid);
 		dirtied_by = new ArrayList <Integer>();

@@ -19,20 +19,10 @@ import java.util.ArrayList;
 
 public class DataFile{
 	public String filename;
-//	public FileOutputStream fos;
-//	public ByteArrayOutputStream baos;
-//	public ObjectOutputStream outputStream;
-//	public FileInputStream fis;
-//	public BufferedInputStream bis;
-//	public ObjectInputStream inputStream;
-	
-//	public BufferedReader br;
-//	public BufferedWriter bw;
-	
+	public int df_id;
+	public boolean isDeleted;
 	public RandomAccessFile raf;
-	
 	public File f;
-	public ArrayList<Integer> page_sizes;
 	
 	/*
 	 * @summary The page ids indexed by block ids
@@ -40,8 +30,10 @@ public class DataFile{
 	private ArrayList <Integer> page_ids;
 	
 	
-	public DataFile(String _fn){
+	public DataFile(String _fn, int dfid){
 		filename = _fn;
+		df_id = dfid;
+		isDeleted = false;
 		//Create the File
 		f = new File(filename);
 		try {
@@ -51,31 +43,8 @@ public class DataFile{
 			e1.printStackTrace();
 			System.exit(0);
 		}
-		//Outputting
-//		try {
-////			fos = new FileOutputStream(f);
-//			bw = new BufferedWriter(new FileWriter(f));
-//			
-//		} catch (FileNotFoundException e) {
-//			e.printStackTrace();
-//			System.exit(0);
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//			System.exit(0);
-//		}
-//		try {
-////			fis = new FileInputStream(f);
-//			br = new BufferedReader(new FileReader(f));
-//		} catch (FileNotFoundException e) {
-//			e.printStackTrace();
-//			System.exit(0);
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//			System.exit(0);
-//		}
-		
+
 		page_ids = new ArrayList<Integer>();
-		page_sizes = new ArrayList<Integer>();
 		
 	}
 	
