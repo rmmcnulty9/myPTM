@@ -71,18 +71,28 @@ public class LockTree {
 		}
 		else{
 			// TODO: (jmg199) REMOVE AFTER TESTING.
-			System.out.println("[Sched] OPERATION TYPE [" + currOp.type + "]");
+			System.out.println("[Sched.LockTree] OPERATION TYPE [" + currOp.type + "]");
 
 			if (currOp.type.equals("D")){
 				// Deletes occur at the file level. As twisted as this sounds, the
 				// record tree contains locks for all records in a file, therefore
 				// when locking a file the transaction doing the delete is stored
 				// in the record tree.
+				
+				// TODO: (jmg199) REMOVE AFTER TESTING.
+				System.out.println("[Sched.LockTree] Processing a delete operation.");
+				
 				if (recordTree.hasFileLock(targetTxn)){
+					// TODO: (jmg199) REMOVE AFTER TESTING.
+					System.out.println("[Sched.LockTree] Txn already has file lock.");
+					
 					// Already have the lock.
 					return true;
 				}
 				else {
+					// TODO: (jmg199) REMOVE AFTER TESTING.
+					System.out.println("[Sched.LockTree] Attempting to acquire file lock.");
+					
 					return recordTree.attemptAcquireFileLock(targetTxn);
 				}
 			}

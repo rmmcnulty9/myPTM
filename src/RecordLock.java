@@ -1,3 +1,4 @@
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -61,14 +62,14 @@ public class RecordLock{
      */
     public boolean attemptAcquire(Transaction sourceTxn){
     	// TODO: (jmg199) REMOVE AFTER TESTING.
-    	System.out.format("[Lock] Attempting to acquire lock for txn ID [" + sourceTxn.tid + "]");
+    	System.out.println("[Lock] Attempting to acquire lock for txn ID [" + sourceTxn.tid + "]");
     	
     	LockType sourceLockType = new LockType(sourceTxn, this);
     	
     	if (canAcquire(sourceLockType)){
     		acquire(sourceLockType);
     		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.format("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]");
+    		System.out.println("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]");
 
     		return true;
     	}
@@ -81,7 +82,7 @@ public class RecordLock{
             parentRecLockTree.queuedRecLockTypeList.put(sourceLockType.lockHolder.tid, sourceLockType);
             
     		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.format("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]");
+    		System.out.println("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]");
     		
             return false;
         }
@@ -203,15 +204,27 @@ public class RecordLock{
     			return true;
     		}
     		else{
-    			// TODO: (jmg199) Implement logic to match the compatibility table.
     			TransactionList conflictingTxns = getConflictingTxns(sourceLockType);
-    			// TODO: (jmg199) CAN'T WOUND HERE.  THIS IS CALLED IN SCHEDULING QUEUED LOCKTYPE.
-    			// TODO: (jmg199) Attempt to wound any younger transaction with conflicting lock, 
-    			//		but still return *false* because it needs to queue up until the younger txns
-    			//		abort.
-    			// TODO: (jmg199) For now just grant one txn at a time.
     			
-    			return false;
+    			if (conflictingTxns.isEmpty()) {
+    				// There are transactions with locks on this record, but they are compatible.
+    				return true;
+    			}
+    			else {
+    				Iterator<Transaction> iter = conflictingTxns.iterator();
+    				Transaction currTxn;
+
+    				while (iter.hasNext()){
+    					currTxn = iter.next();
+    					
+    					// Attempt to wound any younger transaction holding a conflicting lock, 
+    					// but still return *false* because it needs to queue up until the younger txns
+    					// abort.
+    					currTxn.wound(sourceLockType.lockHolder);
+    				}
+
+    				return false;
+    			}
     		}
     	}
     }

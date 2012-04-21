@@ -202,10 +202,16 @@ public class Scheduler extends Thread{
         		// Attempt to get a lock for it.
         		if (lockTree.acquireLock(sourceTxn)) {
         			scheduled_ops.add(sourceTxn.get(0));
+        			
+        			// TODO: (jmg199) REMOVE AFTER TESTING.
+        			System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
         		}
         	}
         	else {
         		scheduled_ops.add(sourceTxn.get(0));
+
+        		// TODO: (jmg199) REMOVE AFTER TESTING.
+        		System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
         	}
         }
     }
@@ -315,12 +321,18 @@ public class Scheduler extends Thread{
             }
 
             if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){
+            	// TODO: (jmg199) REMOVE AFTER TESTING.
+            	System.out.println("[Sched] Transaction ID [" + parentTxn.tid + "] ended with operation [" + currOp.type + "]");
+            	
                 // This transaction has committed or aborted, so release it's locks and
             	// remove it from the transaction list.
             	releaseLocks(parentTxn);
 
                 if (!transactions.removeByTID(parentTxn.tid)){
                     System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
+                }
+                else {
+                    System.out.println("[Sched] Removed txn id [" + parentTxn.tid + "].");
                 }
             }
             else {
@@ -484,7 +496,6 @@ public class Scheduler extends Thread{
     public void abort(Transaction targetTxn) {
     	// If an abort has already been made on this txn just let it go.
     	if (!targetTxn.abortedFlag) {
-    		// TODO: (jmg199) NOTIFY THE TM THAT THE TRANSACTION HAS BEEN ABORTED.
     		// Flag the transaction as aborted.
     		targetTxn.abortedFlag = true;
 
