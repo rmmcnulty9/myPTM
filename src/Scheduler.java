@@ -438,7 +438,7 @@ public class Scheduler extends Thread{
     			queuedTxnGrantedLock.opStart = DateTime.now();
 
     			// Send the txn's operation to the DM.
-            	scheduled_ops.add(sourceTxn.get(0));
+//            	scheduled_ops.add(sourceTxn.get(0));
     		}
     		else if(hasPendingFileLocks){
     			// We had a pending file lock which was not granted. Therefore
