@@ -20,13 +20,30 @@ public class Operation {
 			return;
 		}else if(type.equals("A")){
 			return;
-		}else if(type.equals("B")){
+		}
+		
+		if(op_parts.length<2){
+			System.out.println("Malformed operation: "+op_string);
+			System.exit(0);
+		}
+		
+		if(type.equals("B")){
 			flag = op_parts[1];
-		}else if(type.equals("R")){
-			filename = op_parts[1];
-			val = op_parts[2];
+			return;
 		}else if(type.equals("D")){
 			filename = op_parts[1];
+			return;
+		}
+		
+		if(op_parts.length<3){
+			System.out.println("Malformed operation: "+op_string);
+			System.exit(0);
+		}
+		
+		if(type.equals("R")){
+			filename = op_parts[1];
+			val = op_parts[2];
+			return;
 		}else if(type.equals("W")){
 			filename = op_parts[1];
 			op_parts[2] = op_parts[2].substring(1, op_parts[2].length()-1);

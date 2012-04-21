@@ -50,7 +50,7 @@ public class TranscationManager extends Thread{
 						setOpsLeftInFile(trans.tid, false);
 					}else{
 //						System.out.println("[TM] Read in operation:"+op.toString());
-						Operation o = new Operation(next_index, op);
+						Operation o = new Operation(trans.tid, op);
 						trans.add(o);
 					}
 				}
