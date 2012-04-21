@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -7,6 +8,8 @@ import org.joda.time.Interval;
 
 
 public class Scheduler extends Thread{
+	private static Scheduler schedTask = null;
+	
     // Buffer size that the DM should use.
 	private int buffer_size;
 
@@ -73,6 +76,19 @@ public class Scheduler extends Thread{
         txnMgrDoneFlag = false;
         dataMgrExitFlag = false;
         tm_task = tm;
+        
+        schedTask = this;
+	}
+	
+	
+	
+	/*
+	 * This method returns a reference to our scheduler task. This is used
+	 * when a wound is successful and a the scheduler needs to be notified
+	 * that a transaction should be
+	 */
+	public static Scheduler getSched() {
+		return schedTask;
 	}
 
 
@@ -90,8 +106,9 @@ public class Scheduler extends Thread{
 
 
         // Start the dead lock poll timer thread.
-        System.out.println("[Sched] Starting poll timer...");
-        new PollTimer(20, this);
+		// TODO: (jmg199) THIS WILL BE REMOVED.
+        //System.out.println("[Sched] Starting poll timer...");
+        //new PollTimer(20, this);
 
 
         // Check each transaction in the transaction list and try to schedule
@@ -133,9 +150,9 @@ public class Scheduler extends Thread{
 
         while (!dataMgrExitFlag)
         {
-            // Check every 1/4 sec. to see if DM is done.
+            // Check periodically to see if DM is done.
             try {
-				sleep(250);
+				sleep(100);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -177,6 +194,7 @@ public class Scheduler extends Thread{
         	// Add the transaction to the deadlock list.
         	// The txn must be added even if it is unable to acquire the lock
         	// because it may be deadlocked with another transaction.
+        	// TODO: (jmg199) BECAUSE OF WOUND WAIT THIS WILL GO AWAY.
         	deadlockList.add(sourceTxn);
 
         	// Commits and aborts do no need locks.
@@ -185,6 +203,9 @@ public class Scheduler extends Thread{
         		if (lockTree.acquireLock(sourceTxn)) {
         			scheduled_ops.add(sourceTxn.get(0));
         		}
+        	}
+        	else {
+        		scheduled_ops.add(sourceTxn.get(0));
         	}
         }
     }
@@ -305,10 +326,6 @@ public class Scheduler extends Thread{
             else {
                 // Remove the operation from the transaction's operation list.
                 parentTxn.remove(0);
-                // TODO: (jmg199) CLEANUP AFTER TESTING.
-                //if (!parentTxn.remove(currOp)){
-                //    System.out.println("[Sched] DID NOT REMOVE THE CURRENT OPERATION FROM THE PARENT TXN!");
-                //}
 
                 // Schedule the next operation in the parentTxn.
                 scheduleNextOp(parentTxn);
@@ -354,7 +371,7 @@ public class Scheduler extends Thread{
             //}
         }
 
-        new PollTimer(20, this);
+        //new PollTimer(20, this);
     }
 
 
@@ -363,6 +380,7 @@ public class Scheduler extends Thread{
      * This method is used to resolve deadlocks.
      */
     private void resolveDeadlock(Transaction targetTxn){
+    	// WOUND WAIT IMPLEMENTED ELSEWHERE.
         // TODO: (jmg199) IMPLEMENT WOUND-WAIT.
     }
 
@@ -383,6 +401,9 @@ public class Scheduler extends Thread{
     	// Release the file locks.
     	Iterator<RecordLockTree> fileLockIter = sourceTxn.grantedFileLocks.iterator();
     	RecordLockTree currRecTree;
+    	
+    	// This variable stores the reference to a queued txn which was then granted this
+    	// lock being released.
     	Transaction queuedTxnGrantedLock;
     	boolean hasPendingFileLocks = false;
 
@@ -416,12 +437,11 @@ public class Scheduler extends Thread{
 
 
     	// Now release the record locks.
-    	Iterator<Lock> iter = sourceTxn.grantedLocks.iterator();
-    	Lock currLock;
+    	RecordLock currRecLock;
 
-    	while (iter.hasNext()){
-    		currLock = iter.next();
-    		queuedTxnGrantedLock = currLock.release(sourceTxn);
+    	for (Map.Entry<Integer, RecordLock> entry : sourceTxn.grantedLocks.entrySet()) {
+    		currRecLock = entry.getValue();
+    		queuedTxnGrantedLock = currRecLock.release(sourceTxn);
 
     		if (queuedTxnGrantedLock != null){
     			// There was a transaction waiting for the released
@@ -441,22 +461,42 @@ public class Scheduler extends Thread{
     	// record locks which need to be granted.
     	if (!fullRecLockCheckList.isEmpty()){
     		Iterator<RecordLockTree> fullRecLockCheckIter = fullRecLockCheckList.iterator();
-    		Iterator<Lock> lockIter;
+    		LockType currLockType = null;
 
     		while (fullRecLockCheckIter.hasNext()){
     			currRecTree = fullRecLockCheckIter.next();
 
-    			lockIter = currRecTree.queuedRecLockList.iterator();
+    			// For each queued lock type, go back to it's parent and try to schedule the next
+    			// oldest queued transaction waiting for it.
+    			for (Map.Entry<Integer, LockType> entry : currRecTree.queuedRecLockTypeList.entrySet()) {
+    				currLockType = entry.getValue();
 
-    			while (lockIter.hasNext()){
-    				currLock = lockIter.next();
-
-    				currLock.attemptAcquireForNextQueuedTxn();
+    				currLockType.parentRecordLock.attemptAcquireForNextQueuedTxn();
     			}
     		}
 		}
     }
 
+    
+    /*
+     * This method aborts the specified transaction.
+     */
+    public void abort(Transaction targetTxn) {
+    	// If an abort has already been made on this txn just let it go.
+    	if (!targetTxn.abortedFlag) {
+    		// TODO: (jmg199) NOTIFY THE TM THAT THE TRANSACTION HAS BEEN ABORTED.
+    		// Flag the transaction as aborted.
+    		targetTxn.abortedFlag = true;
+
+    		// Clear the op list for this transaction.
+    		targetTxn.clear();
+
+    		// Create an abort operation and insert it into the aborted txn.
+    		Operation abortOp = new Operation(targetTxn.tid, "A");
+
+    		targetTxn.add(abortOp);
+    	}
+    }
 
 
     /* @summary

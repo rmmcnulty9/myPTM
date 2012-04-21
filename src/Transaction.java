@@ -25,6 +25,7 @@ public class Transaction extends ArrayList<Operation> {
 	public int tid;
 	public int mode;
 	public boolean ops_left_in_file;
+	public boolean abortedFlag;
 
 	// Operation start is used for deadlock detection.
     public DateTime opStart = null;
@@ -33,7 +34,8 @@ public class Transaction extends ArrayList<Operation> {
     public DateTime txnStart = null;
     
     // List of locks that the txn has been granted.
-    public ArrayList<Lock> grantedLocks = null;
+    //public ArrayList<RecordLock> grantedLocks = null;
+    public TreeMap<Integer, RecordLock> grantedLocks = null;
     public ArrayList<RecordLockTree> grantedFileLocks = null;
 
 
@@ -44,8 +46,9 @@ public class Transaction extends ArrayList<Operation> {
 		tid = _tid;
 		ops_left_in_file = true;
 		mode = _mode;
-		grantedLocks = new ArrayList<Lock>();
+		grantedLocks = new TreeMap<Integer, RecordLock>();
 		grantedFileLocks = new ArrayList<RecordLockTree>();
+		abortedFlag = false;
 	}
 
 	public void end(){
@@ -59,6 +62,19 @@ public class Transaction extends ArrayList<Operation> {
 	}
 
 
+	/*
+	 * This method will abort the transaction if the attacking transaction
+	 * is older than this transaction.
+	 */
+	public void wound(Transaction attackingTxn) {
+		if (attackingTxn.txnStart.isBefore(txnStart)) {
+			// The file lock requesting txn is older than the current record lock holder, so abort it.
+			// Tell the scheduler to abort this transaction.
+			Scheduler.getSched().abort(this);
+		}	
+	}
+	
+	
 
     /*
      * @summary

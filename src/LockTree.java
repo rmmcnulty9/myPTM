@@ -31,7 +31,7 @@ public class LockTree {
 	 */
 	public boolean acquireLock(Transaction targetTxn){
 		Operation currOp = targetTxn.get(0);
-		Lock targetLock = null;
+		RecordLock targetLock = null;
 
 		RecordLockTree recordTree = fileTree.get(currOp.filename);
 
@@ -59,16 +59,10 @@ public class LockTree {
 			}
 			else {
 				// Create the record lock.
-				targetLock = new Lock();
+				targetLock = new RecordLock(targetTxn);
 
 				// Insert it into the record tree.
-				if (currOp.type.equals("W")){
-					// Writes have a record object.
-					recordTree.put(currOp.record.ID, targetLock);
-				}
-				else {
-					recordTree.put(Integer.valueOf(currOp.val), targetLock);
-				}
+				recordTree.put(targetLock.recordLockId, targetLock);
 
 				// Attempt to acquire the lock for the txn. Return whether it
 				// actually gets it now.
@@ -107,16 +101,10 @@ public class LockTree {
 					}
 
 					if (targetLock == null){
-						targetLock = new Lock();
+						targetLock = new RecordLock(targetTxn);
 
 						// Insert it into the record tree.
-						if (currOp.type.equals("W")){
-							// Writes have a record object.
-							recordTree.put(currOp.record.ID, targetLock);
-						}
-						else {
-							recordTree.put(Integer.valueOf(currOp.val), targetLock);
-						}	
+						recordTree.put(targetLock.recordLockId, targetLock);
 					}
 
 					// Attempt to acquire the lock for the txn. Return whether it

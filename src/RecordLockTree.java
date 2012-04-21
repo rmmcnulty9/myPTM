@@ -1,9 +1,9 @@
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.*;
-import java.util.Iterator;
 
 
-public class RecordLockTree extends TreeMap<Integer, Lock>{
+public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	/**
 	 *
 	 */
@@ -15,8 +15,11 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	// More than one transaction can be waiting to delete the file.
 	private TransactionList queuedList = null;
 
-	public CopyOnWriteArrayList<Lock> grantedRecLockList = null;
-	public CopyOnWriteArrayList<Lock> queuedRecLockList = null;
+	//public CopyOnWriteArrayList<RecordLock> grantedRecLockList = null;
+	public TreeMap<Integer, LockType> grantedRecLockTypeList = null;
+	//public CopyOnWriteArrayList<RecordLock> queuedRecLockList = null;
+	public TreeMap<Integer, LockType> queuedRecLockTypeList = null;
+	
 
 
 	/*
@@ -24,8 +27,8 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	 */
 	public RecordLockTree(){
 		queuedList = new TransactionList();
-		grantedRecLockList = new CopyOnWriteArrayList<Lock>();
-		queuedRecLockList = new CopyOnWriteArrayList<Lock>();
+		grantedRecLockTypeList = new TreeMap<Integer, LockType>();
+		queuedRecLockTypeList = new TreeMap<Integer, LockType>();
 	}
 
 
@@ -55,9 +58,52 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	 * This method determines if a *file* lock can be acquired. It assumes that
 	 * the lock tree has already determined if any record locks exist in the file.
 	 */
-	public boolean canAcquireFileLock(){
+	public boolean canAcquireFileLock(Transaction targetTxn){
 		// Nothing has the lock, nothing is waiting for the lock, and there are no record locks.
-		return (txnGrantedFileLock == null) && (queuedList.size() == 0) && (grantedRecLockList == 0);
+		if (txnGrantedFileLock != null){
+			if (txnGrantedFileLock.equals(targetTxn)){
+				// It already has the lock.  We're good.
+				return true;
+			}
+			else {
+				// Lock is already held, can't acquire (without wounding anyway).
+				attemptToWound(targetTxn);
+				
+				// Return false to queue this up until the either the wounded
+				// dies or if older it finishes.
+				return false;
+			}
+		}
+		
+		if (!grantedRecLockTypeList.isEmpty()){
+			// There are record locks in place. 
+			// Try wounding, then queue up until they all die or if some are older they
+			// finish.
+			
+			// Grab the IDs of the targets because we'll be modifying the underlying granted
+			// lock tree.
+			CopyOnWriteArrayList<Integer> tempIds = new CopyOnWriteArrayList<Integer>();
+
+			for (Map.Entry<Integer, LockType> entry : grantedRecLockTypeList.entrySet()) {
+				tempIds.add(entry.getValue().lockHolder.tid);
+			}
+			
+			// Attempt to wound each record lock holder.
+			while (!tempIds.isEmpty()) {
+				Integer txnId = tempIds.remove(0);
+				
+				// If the target is older than the current lock holder, then the current
+				// holder will be aborted.  In either case the target gets queued since
+				// we need to wait for the DM to ack the abort or wait for the current
+				// lock holder to finish to commit.
+				grantedRecLockTypeList.get(txnId).lockHolder.wound(targetTxn);
+			}
+			
+			// Return false so that this will be queued up to wait for the other to die or finish.
+			return false;
+		}
+		
+		return true;
 	}
 
 
@@ -66,11 +112,12 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	 * get it when it becomes available.
 	 */
 	public boolean attemptAcquireFileLock(Transaction targetTxn){
-		if (canAcquireFileLock()){
+		if (canAcquireFileLock(targetTxn)){
 			acquireFileLock(targetTxn);
 			return true;
 		}
 		else {
+			
 			queuedList.add(targetTxn);
 			return false;
 		}
@@ -85,13 +132,16 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	}
 
 
+	
 	public Transaction attemptAcquireQueuedFileLock(){
 		synchronized(this){
 			if (queuedList.isEmpty() || (txnGrantedFileLock != null)){
+				// There is nothing to be queued, or a txn already has the lock 
+				// (not likely since we just gave it up).
 				return null;
 			}
 			else {
-				if (queuedRecLockList.isEmpty()){
+				if (queuedRecLockTypeList.isEmpty()){
 					// There are no record locks waiting.
 					// The file lock is available so take it.
 					acquireFileLock(queuedList.get(0));
@@ -101,16 +151,15 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 				else {
 					// There are Record Locks queued, so they need to be
 					// checked to see who goes first.
-					Iterator<Lock> iter = queuedRecLockList.iterator();
-					Lock currLock;
+					LockType currLockType;
 					Transaction queuedTxn;
 
-					while (iter.hasNext()){
+					for (Map.Entry<Integer, LockType> entry : queuedRecLockTypeList.entrySet()) {
 						// Check the current queued lock opStart with the
 						// one queued for the file lock.
-						currLock = iter.next();
+						currLockType = entry.getValue();
 
-						queuedTxn = currLock.getNextQueuedTxn();
+						queuedTxn = currLockType.parentRecordLock.getOldestTxnInQueue();
 
 						if (queuedTxn.opStart.isBefore(queuedList.get(0).opStart)){
 							// Found a transaction that is queued to get a record
@@ -155,13 +204,25 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 			else {
 				// There is no file lock currently, but there is at least
 				// one transaction waiting for the file lock. Check each
-				// transactions opStart time to determine which got there
-				// first.
-				return (targetTransaction.opStart.isBefore(queuedList.get(0).opStart));
+				// transaction's start time to determine which is older.
+				return (targetTransaction.txnStart.isAfter(queuedList.get(0).txnStart));
 			}
 		}
 	}
 
+	/*
+	 * This method will attempt to wound the file lock holder. The transaction
+	 * start times are compared, and if the attacker is older the file lock
+	 * holder is aborted.
+	 */
+	public void attemptToWound(Transaction attackingTxn){
+		if (txnGrantedFileLock != null){
+			if (attackingTxn.txnStart.isBefore(txnGrantedFileLock.txnStart)){
+				// Tell the scheduler to abort this txn.
+				Scheduler.getSched().abort(txnGrantedFileLock);
+			}
+		}
+	}
 
 	/*
 	 *
@@ -204,7 +265,7 @@ public class RecordLockTree extends TreeMap<Integer, Lock>{
 	 * (non-Javadoc)
 	 * @see java.util.TreeMap#put(java.lang.Object, java.lang.Object)
 	 */
-	public Lock put(Integer key, Lock value){
+	public RecordLock put(Integer key, RecordLock value){
 		// Store the parent Record Lock Tree in the Lock.
 		value.parentRecLockTree = this;
 
