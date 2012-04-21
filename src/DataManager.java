@@ -19,7 +19,7 @@ public class DataManager extends Thread {
 	public static int next_global_page_id;
 	public static int next_df_id;
 
-	public ArrayList<Operation> current_ops = null;
+	public ArrayList<Operation> scheduled_ops = null;
 
 	// List of operations that have been executed.
 	public ArrayList<Operation> completed_ops = null;
@@ -40,8 +40,8 @@ public class DataManager extends Thread {
 
 	public ArrayList<DataFile> data_files;
 
-	public DataManager(ArrayList<Operation> _current_op, ArrayList<Operation> _completed_ops, int _buffer_size, String _search_method, Scheduler s) {
-		current_ops = _current_op;
+	public DataManager(ArrayList<Operation> _scheduled_op, ArrayList<Operation> _completed_ops, int _buffer_size, String _search_method, Scheduler s) {
+		scheduled_ops = _scheduled_op;
 		completed_ops = _completed_ops;
 		buffer_size = _buffer_size;
 		next_df_id=0;
@@ -61,10 +61,10 @@ public class DataManager extends Thread {
 
 	public void run(){
 
-		while(!schedDoneFlag || !current_ops.isEmpty()){
+		while(!schedDoneFlag || !scheduled_ops.isEmpty()){
 
-			if(!current_ops.isEmpty()){
-				Operation op = current_ops.remove(0);
+			if(!scheduled_ops.isEmpty()){
+				Operation op = scheduled_ops.remove(0);
 				if(op == null){
 					System.out.println("[DM] Operations is null??");
 					System.exit(0);
