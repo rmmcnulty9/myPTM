@@ -71,6 +71,7 @@ public class DataManager extends Thread {
 				}
 				DataFile df = getDataFileByName(op.filename);
 				if(op.type.equals("A")){
+					//TODO Not tested
 					undoAbortedTransaction(op.tid);
 					completed_ops.add(op);
 					continue;
@@ -78,7 +79,6 @@ public class DataManager extends Thread {
 					System.out.println("[DM] Committing...");
 					flushTransactionsPages(op.tid);
 					//Clean those entries from the Journal
-					//TODO Not tested!
 					ArrayList<Integer> old_df_ids = journal.cleanByTID(op.tid);
 					while(!old_df_ids.isEmpty()){
 						DataFile old_df = getDataFileByDFID(old_df_ids.remove(0));
@@ -96,6 +96,7 @@ public class DataManager extends Thread {
 						df = new DataFile(op.filename,next_df_id);
 						next_df_id++;
 						data_files.add(df);
+						journal.addEntry(op.tid, df.df_id, -1, -1, df.df_id);
 					}
 				}
 
@@ -234,22 +235,22 @@ public class DataManager extends Thread {
 				System.out.println("Must be able to add to this page.");
 				System.exit(-1);
 			}else{
-				if(log_op)journal.addEntry(tid, df.df_id, -1, -1, df.df_id);
+				if(log_op)journal.addEntry(tid, df.df_id, p.page_id, null, record.toString());
 			}
 			addToBuffer(p);
 
 			return next_pid;
 		}
 
-		int page_id = record.ID % df.BlockCount();
-		Page p = getBufferedPageByPageID(page_id);
+		int bid = record.ID % df.BlockCount();
+		Page p = getBufferedPageByBID(bid);
 		if(p==null){
 			// Not in buffer look in file
-			p = loadPage(df, tid, page_id);
+			p = loadPage(df, tid, bid);
 		}
 		if(p == null){
 			System.out.println("[DM] Records not found!");
-			return rehashDataFile(df, record, tid, next_pid);
+			return rehashDataFile(df, record, tid, next_pid, log_op);
 		}else{
 			for(int i=0;i<p.size();i++){
 				Record cur_r = p.get(i);
@@ -264,7 +265,7 @@ public class DataManager extends Thread {
 						}
 					}else if(cur_r.ID>record.ID){
 						if(!p.addAtIndex(i, record)){
-							return rehashDataFile(df, record, tid, next_pid);
+							return rehashDataFile(df, record, tid, next_pid, log_op);
 						}else{
 							if(log_op)journal.addEntry(tid, df.df_id, p.page_id, null, record.toString());
 							return next_pid;
@@ -274,7 +275,7 @@ public class DataManager extends Thread {
 						System.exit(0);
 					}
 				}else if(i==Page.RECORDS_PER_PAGE-1){
-					return rehashDataFile(df, record, tid, next_pid);
+					return rehashDataFile(df, record, tid, next_pid, log_op);
 					
 				}else if(i==p.size()-1){
 					if(!p.add(record)){
@@ -291,6 +292,13 @@ public class DataManager extends Thread {
 		return next_pid;
 	}
 
+	private Page getBufferedPageByBID(int bid) {
+		for(int i=0;i<buffer.size();i++){
+			if(buffer.get(i).block_id==bid) return buffer.get(i);
+		}
+		return null;
+	}
+
 	private void undoAbortedTransaction(int tid) {
 		//Get list of operations to undo
 		ArrayList<JournalEntry> undos = journal.undoByTID(tid);
@@ -299,6 +307,41 @@ public class DataManager extends Thread {
 		while(!undos.isEmpty()){
 			JournalEntry cur = undos.remove(0);
 			DataFile df = getDataFileByDFID(cur.df_id);
+			
+			/**
+			 * DataFile Creation or Deletion Entry
+			 */
+			
+			//If deleted file: restore the old data file
+			if(cur.after_image.equals("-1")){
+				DataFile cur_df = getDataFileByName(df.filename);
+				df.isDeleted = false;
+				File new_df_newf = cur_df.f;
+				if(!df.f.renameTo(new_df_newf)){
+					System.out.println("Failed to rename new datafile.");
+					System.exit(0);
+				}
+				df.f = new_df_newf;
+				data_files.remove(cur_df);
+				cur_df.isDeleted = true;
+				cur_df.close();
+				cur_df.delete();
+				continue;
+			}
+			
+			//If file created: Delete that datafile
+			if(cur.before_image.equals("-1")){
+				data_files.remove(df);
+				df.isDeleted = true;
+				df.close();
+				df.delete();
+				continue;
+			}
+			
+			/**
+			 * Record Adding or Updating Entry
+			 */
+			
 			Page p=null;
 			if(cur.pid!=-1){
 				p = getPage(df, cur.tid, cur.pid);
@@ -309,32 +352,20 @@ public class DataManager extends Thread {
 				p.removeByRecordID(r.ID);
 				continue;
 			}
+			
 			//If an update(before and after image present): execute the before image
 			if(!cur.before_image.equals("BEFORE") && !cur.after_image.equals("AFTER")){
 				Record before_r = new Record(cur.before_image);
 				if(search_method.endsWith("scan")){
 					next_global_page_id = addRecordToFileScan(df, before_r, tid, next_global_page_id, false);
+					continue;
 				}else if(search_method.equals("hash")){
 					next_global_page_id = addRecordToFileHash(df, before_r, tid, next_global_page_id, false);
+					continue;
 				}else{
 					System.out.println("Bad search method.");
 					System.exit(0);
 				}
-			}
-			
-			//If deleted file: restore the old data file
-			if(Integer.parseInt(cur.before_image) == cur.df_id){
-	
-					//TODO implement the rest of this!
-				return;
-			}
-			//If file created: Delete that datafile
-			if(Integer.parseInt(cur.after_image) == cur.df_id){
-				df.isDeleted = true;
-				df.close();
-				df.delete();
-				data_files.remove(df);
-				return;
 			}
 		}
 	}
@@ -344,8 +375,8 @@ public class DataManager extends Thread {
 		for(int i=0;i<buffer.size();i++){
 			if(buffer.get(i).page_id==pid) return buffer.get(i);
 		}
-	
-		Page p = loadPage(df, tid, df.getBIDByPID(pid));
+		int bid = df.getBIDByPID(pid);
+		Page p = loadPage(df, tid, bid);
 		if(p == null){
 			System.out.println("This Page ID does not exisit in this file.");
 			System.exit(0);
@@ -371,7 +402,7 @@ public class DataManager extends Thread {
 		}
 	}
 
-	private int rehashDataFile(DataFile df, Record record, int tid, int next_pid) {
+	private int rehashDataFile(DataFile df, Record record, int tid, int next_pid, boolean log_op) {
 		
 		//First flush the whole buffer
 		while(!buffer.isEmpty()){
@@ -383,7 +414,6 @@ public class DataManager extends Thread {
 		DataFile new_df = new DataFile(df.filename+"_TEMP", next_df_id);
 		next_df_id++;
 		new_df.initializeDataFileSize(df.BlockCount() * 2);
-		data_files.add(new_df);
 
 		for(int i=0;i<df.BlockCount();i++){
 			if(df.getPageIDByBlockID(i)==-1)continue;
@@ -395,7 +425,7 @@ public class DataManager extends Thread {
 			//Rehash each record into new DataFile
 			for(int k=0;k<p.size();k++){
 				int new_bid =  p.get(k).ID % new_df.BlockCount();
-				Page new_page = getBufferedPageByPageID(df.getPageIDByBlockID(new_bid));
+				Page new_page = getBufferedPageByPageID(new_df.getPageIDByBlockID(new_bid));
 				if(new_page==null){
 					new_page = loadPage(new_df,tid,new_bid);
 				}
@@ -405,7 +435,12 @@ public class DataManager extends Thread {
 					new_df.setPageIDInBlockIDIndex(new_page.block_id,new_page.page_id);
 					new_page.dirtied_by.add(tid);
 				}
-				new_page.add(p.get(k));
+				if(!new_page.add(p.get(k))){
+					System.out.println("Must be able to add to this page.");
+					System.exit(-1);
+				}else{
+					if(log_op)journal.addEntry(tid, df.df_id, new_page.page_id, null, p.get(k).toString());
+				}
 				flushPage(new_df, new_page);
 			}
 			//Remove the old page so it does not get flushed to the new datafile
@@ -413,23 +448,27 @@ public class DataManager extends Thread {
 		}
 
 		//Remove the old DataFile and rename the current one
-		df.close();
-		if(!df.delete()){
-			System.out.println("failed to delete old DF");
-			System.exit(0);
-		}
+		df.isDeleted = true;
+		if(log_op)journal.addEntry(tid, df.df_id, -1, df.df_id, -1);
 		//Everything in buffer than be thrown out
 		buffer.clear();
 
-		data_files.remove(new_df);
-		boolean ret = new_df.f.renameTo(df.f);
-		if(!ret){
+		//Rename the DataFile for backup purposes
+		File df_newf = new File(df.filename+"_"+df.df_id);
+		if(!df.f.renameTo(df_newf)){
 			System.out.println("Failed to rename new datafile.");
 			System.exit(0);
 		}
-		data_files.remove(df);
+		File new_df_newf = df.f;
+		if(!new_df.f.renameTo(new_df_newf)){
+			System.out.println("Failed to rename new datafile.");
+			System.exit(0);
+		}
 		new_df.filename = df.filename;
+		df.f = df_newf;
+		new_df.f = new_df_newf;
 		data_files.add(new_df);
+		if(log_op)journal.addEntry(tid, new_df.df_id, -1, -1, new_df.df_id);
 
 		// Block that the new record belongs in
 		int new_record_bid = record.ID % new_df.BlockCount();
@@ -461,7 +500,7 @@ public class DataManager extends Thread {
 		try {
 			df.raf.close();
 			new_df.f = new File(new_df.filename);
-			boolean r = new_df.f.exists();
+			new_df.f.exists();
 			df.raf = new RandomAccessFile(new_df.f,"rw");
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -515,7 +554,6 @@ public class DataManager extends Thread {
 	}
 
 	private Record getRecordFromBufferedPage(int id) {
-		//TODO possibly a binary search?
 		for(int i=0;i<buffer.size();i++){
 			Page p = buffer.get(i);
 			Record r = p.getRecordFromPage(id);
@@ -555,7 +593,7 @@ public class DataManager extends Thread {
 				System.out.println("Must be able to add to this page.");
 				System.exit(-1);
 			}else{
-				if(log_op)journal.addEntry(tid, df.df_id, -1, -1, df.df_id);
+				if(log_op)journal.addEntry(tid, df.df_id, p.page_id, null, new_r.toString());
 			}
 			addToBuffer(p);
 
@@ -632,7 +670,7 @@ public class DataManager extends Thread {
 	 * @param in_use_now - the page in use that should not be flushed
 	 */
 	private void removePageInBuffer(DataFile df, Page in_use_now) {
-		// TODO REPLACEMENT ALGORITHM - something smarter
+		// TODO REPLACEMENT ALGORITHM - something smarter??
 		int fewest_fix=0;
 		for(int i=0;i<buffer.size();i++){
 			Page cur = buffer.get(i);
@@ -852,6 +890,7 @@ public class DataManager extends Thread {
 						}
 						Page p = new Page(df.df_id, header_parts[1], header_parts[3], records);
 						p.fixed_by.add(new Integer(tid));
+						addToBuffer(p);
 						return p;
 					}
 				}

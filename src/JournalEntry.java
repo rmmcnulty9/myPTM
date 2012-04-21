@@ -20,5 +20,9 @@ public class JournalEntry {
 			System.exit(0);
 		}
 	}
+	
+	public String toString(){
+		return tid+" "+df_id+" "+pid+" "+before_image+" "+after_image+"\n";
+	}
 
 }
