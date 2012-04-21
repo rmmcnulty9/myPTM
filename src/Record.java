@@ -24,6 +24,6 @@ public class Record implements java.io.Serializable{
 	}
 
 	public String toString(){
-		return ID+" "+ClientName+" "+Phone+"\n";
+		return ID+" "+ClientName+" "+Phone;
 	}
 }

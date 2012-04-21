@@ -13,18 +13,26 @@ public class Journal {
 		
 		File f = new File("journal.txt");
 		try {
+			boolean ret = f.createNewFile();
+			
 			raf = new RandomAccessFile(f,"rw");
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
+			System.exit(0);
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.exit(0);
 		}
 	}
 	
 	
 	public boolean addEntry(int tid, int df_id, int pid, String before_image, String after_image){
-		String e = tid+","+df_id+","+pid+" "+before_image+","+after_image+"\n";
+		if(before_image==null)before_image = "BEFORE";
+		if(after_image==null)after_image = "AFTER\n";
+		String e = tid+","+df_id+","+pid+","+before_image+","+after_image+"\n";
 		try{
 			raf.seek(raf.length());
-			raf.writeChars(e);
+			raf.writeBytes(e);
 		} catch(IOException ex){
 			ex.printStackTrace();
 			System.exit(0);
@@ -40,16 +48,24 @@ public class Journal {
 			while(null!=cur){
 				long orig_pos = raf.getFilePointer();
 				cur = raf.readLine();
+				if(cur==null) continue;
 				String parts[] = cur.split(",");
+				
+				//If the line starts with 2 spaces it is a previously cleared entry, so continue
+				if(parts[0].startsWith("  ")) continue;
+				
 				if(parts.length!=5){
 					System.out.println("Bad entry.");
 					System.exit(0);
 				}
+				
 				if(Integer.parseInt(parts[0])==tid){
 					long space_size = raf.getFilePointer()-orig_pos;
-					String spaces = String.format("%-"+space_size);
+					String spaces = " ";
+					for(int k=0;k<space_size-2;k++) spaces+=" ";
+					spaces+="\n";
 					raf.seek(orig_pos);
-					raf.writeChars(spaces);
+					raf.writeBytes(spaces);
 					//If the before image and the df_id are equal this was a deleted file
 					if(parts[3].equals(parts[1])){
 						df_ids.add(new Integer(parts[3]));
@@ -74,6 +90,7 @@ public class Journal {
 			while(null!=cur){
 				long orig_pos = raf.getFilePointer();
 				cur = raf.readLine();
+				if(cur==null) continue;
 				String parts[] = cur.split(",");
 				if(parts.length!=5){
 					System.out.println("Bad entry.");
@@ -81,9 +98,10 @@ public class Journal {
 				}
 				if(Integer.parseInt(parts[0])==tid){
 					long space_size = raf.getFilePointer()-orig_pos;
-					String spaces = String.format("%-"+space_size);
+					String spaces = " ";
+					for(int k=0;k<space_size-1;k++) spaces+=" ";
 					raf.seek(orig_pos);
-					raf.writeChars(spaces);
+					raf.writeBytes(spaces);
 					undos.add(new JournalEntry(parts[0],parts[1],parts[2],parts[3],parts[4]));
 				}
 			}
@@ -99,10 +117,10 @@ public class Journal {
 
 
 	public boolean addEntry(int tid, int df_id, int pid, int before_dfid, int nil) {
-		String e = tid+","+df_id+","+pid+" "+before_dfid+","+nil+"\n";
+		String e = tid+","+df_id+","+pid+","+before_dfid+","+nil+"\n";
 		try{
 			raf.seek(raf.length());
-			raf.writeChars(e);
+			raf.writeBytes(e);
 		} catch(IOException ex){
 			ex.printStackTrace();
 			System.exit(0);

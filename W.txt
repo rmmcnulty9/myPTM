@@ -1,0 +1,22 @@
+B 1
+D sampleDataFile.txt
+W sampleDataFile.txt (558,Ed,443-241-0231)
+W sampleDataFile.txt (72,Parn,108-021-1388)
+W sampleDataFile.txt (809,Deedlit,205-523-8423)
+W sampleDataFile.txt (367,Bebop,186-553-5638)
+W sampleDataFile.txt (590,Ed,037-355-5082)
+W sampleDataFile.txt (317,Spike,236-104-2188)
+W sampleDataFile.txt (866,Bebop,157-756-1706)
+W sampleDataFile.txt (785,Bebop,601-786-5470)
+W sampleDataFile.txt (980,Seras,353-311-6306)
+W sampleDataFile.txt (761,Ed,372-146-7330)
+W sampleDataFile.txt (822,Seras,331-533-1185)
+W sampleDataFile.txt (110,Bebop,652-525-0514)
+W sampleDataFile.txt (274,Faye,026-485-1584)
+W sampleDataFile.txt (1069,Lodoss,648-227-5833)
+W sampleDataFile.txt (1619,Jet,803-612-0310)
+W sampleDataFile.txt (624,Jet,574-423-5425)
+W sampleDataFile.txt (1486,Jet,845-018-7251)
+W sampleDataFile.txt (1519,Seras,233-435-4326)
+W sampleDataFile.txt (1597,Faye,556-678-5525)
+C

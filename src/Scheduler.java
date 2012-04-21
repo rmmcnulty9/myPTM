@@ -334,6 +334,8 @@ public class Scheduler extends Thread{
                 else {
                     System.out.println("[Sched] Removed txn id [" + parentTxn.tid + "].");
                 }
+                // Remove the operation from the transaction's operation list.
+                parentTxn.remove(0);
             }
             else {
                 // Remove the operation from the transaction's operation list.

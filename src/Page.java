@@ -87,7 +87,7 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 			if(i>=this.size()){
 				s+= "~~ FREE ~~\n";
 			}else{
-				s+=	this.get(i).toString();
+				s+=	this.get(i).toString()+"\n";
 			}
 		}
 		return s;
