@@ -144,6 +144,12 @@ public class DataManager extends Thread {
 						System.out.println("[DM] Scan Method: Delete "+delete_count+"...");
 						flushBufferedPageByDataFile(df);
 						df.isDeleted = true;
+						File df_newf = new File(df.filename+"_"+df.df_id);
+						if(!df.f.renameTo(df_newf)){
+							System.out.println("Failed to rename new datafile.");
+							System.exit(0);
+						}
+						df.f = df_newf;
 						journal.addEntry(op.tid, df.df_id, -1, df.df_id, -1);
 						completed_ops.add(op);
 						continue;
@@ -193,6 +199,12 @@ public class DataManager extends Thread {
 						System.out.println("[DM] Hash Method: Delete "+delete_count+"...");
 						flushBufferedPageByDataFile(df);
 						df.isDeleted = true;
+						File df_newf = new File(df.filename+"_"+df.df_id);
+						if(!df.f.renameTo(df_newf)){
+							System.out.println("Failed to rename new datafile.");
+							System.exit(0);
+						}
+						df.f = df_newf;
 						journal.addEntry(op.tid, df.df_id, -1, df.df_id, -1);
 						completed_ops.add(op);
 						continue;
@@ -314,18 +326,14 @@ public class DataManager extends Thread {
 			
 			//If deleted file: restore the old data file
 			if(cur.after_image.equals("-1")){
-				DataFile cur_df = getDataFileByName(df.filename);
 				df.isDeleted = false;
-				File new_df_newf = cur_df.f;
+				
+				File new_df_newf = new File(df.filename);
 				if(!df.f.renameTo(new_df_newf)){
 					System.out.println("Failed to rename new datafile.");
 					System.exit(0);
 				}
 				df.f = new_df_newf;
-				data_files.remove(cur_df);
-				cur_df.isDeleted = true;
-				cur_df.close();
-				cur_df.delete();
 				continue;
 			}
 			
@@ -335,7 +343,10 @@ public class DataManager extends Thread {
 				df.isDeleted = true;
 				df.close();
 				df.delete();
+//				DataFile new_df = getDataFileByDFID(df.df_id-1);
+//				if(new_df!=null) new_df.isDeleted=false;
 				continue;
+				
 			}
 			
 			/**
