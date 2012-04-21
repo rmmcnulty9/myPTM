@@ -13,7 +13,8 @@ public class Journal {
 		
 		File f = new File("journal.txt");
 		try {
-			boolean ret = f.createNewFile();
+			f.delete();
+			f.createNewFile();
 			
 			raf = new RandomAccessFile(f,"rw");
 		} catch (FileNotFoundException e) {
@@ -92,6 +93,10 @@ public class Journal {
 				cur = raf.readLine();
 				if(cur==null) continue;
 				String parts[] = cur.split(",");
+				
+				//If the line starts with 2 spaces it is a previously cleared entry, so continue
+				if(parts[0].startsWith("  ")) continue;
+				
 				if(parts.length!=5){
 					System.out.println("Bad entry.");
 					System.exit(0);
@@ -102,7 +107,7 @@ public class Journal {
 					for(int k=0;k<space_size-1;k++) spaces+=" ";
 					raf.seek(orig_pos);
 					raf.writeBytes(spaces);
-					undos.add(new JournalEntry(parts[0],parts[1],parts[2],parts[3],parts[4]));
+					undos.add(0,new JournalEntry(parts[0],parts[1],parts[2],parts[3],parts[4]));
 				}
 			}
 		} catch(IOException ex){

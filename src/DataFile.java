@@ -37,6 +37,7 @@ public class DataFile{
 		//Create the File
 		f = new File(filename);
 		try {
+			f.delete();
 			f.createNewFile();
 			raf = new RandomAccessFile(f,"rw");
 		} catch (IOException e1) {
@@ -90,7 +91,7 @@ public class DataFile{
 //		return page_ids.size();
 //	}
 
-	public int getPIDIndexByPID(int page_id) {
+	public int getBIDByPID(int page_id) {
 		return page_ids.indexOf(page_id);
 	}
 

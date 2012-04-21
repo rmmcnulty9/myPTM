@@ -92,4 +92,14 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		}
 		return s;
 	}
+
+	public void removeByRecordID(int ID) {
+		for(int i=0;i<this.size();i++){
+			if(this.get(i).ID==ID){
+				this.remove(i);
+				return;
+			}
+		}
+		
+	}
 }
