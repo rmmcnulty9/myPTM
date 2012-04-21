@@ -36,6 +36,10 @@ public class TranscationManager extends Thread{
 
 				String op = null;
 				Transaction trans = getByIndex(next_index);
+				if(trans == null){
+					next_index = 0;
+					trans = getByIndex(next_index);
+				}
 				if(isOpLeftInFile(trans.tid)){
 					try {
 						op = trans.br.readLine();
@@ -50,7 +54,6 @@ public class TranscationManager extends Thread{
 					}
 				}
 				next_index+=1;
-				if(null == getByIndex(next_index)) next_index=0;
 
 			}else if(random_read){
 				next_index = rgen.nextInt(transactions.size());

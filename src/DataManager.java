@@ -17,7 +17,6 @@ import java.util.ArrayList;
 public class DataManager extends Thread {
 
 	public static int next_global_page_id;
-	public static int next_global_LSN;
 	public static int next_df_id;
 
 	public ArrayList<Operation> current_ops = null;
@@ -47,8 +46,6 @@ public class DataManager extends Thread {
 		buffer_size = _buffer_size;
 		next_df_id=0;
 		next_global_page_id = 0;
-		//TODO remove LSN after I"m sure I won't use it
-		next_global_LSN = 0;
 		schedDoneFlag = false;
 		scheduler  = s;
 
@@ -185,63 +182,11 @@ public class DataManager extends Thread {
 					}else if(op.type.equals("W")){
 						write_count++;
 						System.out.println("[DM] Hash Method: Writing "+write_count+"...");
-						//If dataFile is empty add page
-						if(df.isEmpty()){
-							if(buffer.size() == buffer_size){
-								System.out.println("Buffer should be empty here.");
-								System.exit(0);
-								//								removePageInBuffer(df, null);
-							}
-							//Page creation
-							Page p = new Page(df.df_id,next_global_page_id, 0, next_global_LSN);
-							next_global_page_id++;
-							next_global_LSN+=1;
-							df.addPageIDToBlockIDIndex(p.block_id,p.page_id);
-							p.dirtied_by.add(op.tid);
-
-							if(!p.add(op.record)){
-								System.out.println("Must be able to add to this page.");
-								System.exit(-1);
-							}
-							addToBuffer(p);
-							completed_ops.add(op);
-							continue;
-						}
-
-						int page_id = op.record.ID % df.BlockCount();
-						Page p = getBufferedPageByPageID(page_id);
-						if(p==null){
-							// Not in buffer look in file
-							p = loadPage(df, op.tid, page_id);
-						}
-						if(p == null){
-							System.out.println("[DM] Records not found!");
-							next_global_page_id = rehashDataFile(df,op.record,op.tid,next_global_page_id);
-							completed_ops.add(op);
-							continue;
-						}else{
-							for(int i=0;i<p.size();i++){
-								Record cur_r = p.get(i);
-								if(cur_r.ID>op.record.ID){
-									if(!p.addAtIndex(i, op.record)){
-										next_global_page_id = rehashDataFile(df,op.record,op.tid,next_global_page_id);
-									}
-									break;
-								}else if(i==Page.RECORDS_PER_PAGE-1){
-									next_global_page_id = rehashDataFile(df,op.record,op.tid,next_global_page_id);
-									break;
-								}else if(i==p.size()-1){
-									if(!p.add(op.record)){
-										System.out.println("This should not trip!");
-										System.exit(0);
-									}
-									break;
-								}
-							}
-							completed_ops.add(op);
-							continue;
-						}
-
+						
+						next_global_page_id = addRecordToFileHash(df, op.record,op.tid,next_global_page_id);
+						completed_ops.add(op);
+						continue;
+						
 					}else if(op.type.equals("D")){
 						delete_count++;
 						System.out.println("[DM] Hash Method: Delete "+delete_count+"...");
@@ -270,12 +215,122 @@ public class DataManager extends Thread {
 
 	}
 
+	private int addRecordToFileHash(DataFile df, Record record, int tid, int next_pid) {
+
+		//If dataFile is empty add page
+		if(df.isEmpty()){
+			if(buffer.size() == buffer_size){
+				System.out.println("Buffer should be empty here.");
+				System.exit(0);
+				//								removePageInBuffer(df, null);
+			}
+			//Create new page
+			Page p = new Page(df.df_id,next_pid, 0);
+			next_pid++;
+			df.addPageIDToBlockIDIndex(p.block_id,p.page_id);
+			p.dirtied_by.add(tid);
+
+			if(!p.add(record)){
+				System.out.println("Must be able to add to this page.");
+				System.exit(-1);
+			}else{
+				journal.addEntry(tid, df.df_id, -1, -1, df.df_id);
+			}
+			addToBuffer(p);
+
+			return next_pid;
+		}
+
+		int page_id = record.ID % df.BlockCount();
+		Page p = getBufferedPageByPageID(page_id);
+		if(p==null){
+			// Not in buffer look in file
+			p = loadPage(df, tid, page_id);
+		}
+		if(p == null){
+			System.out.println("[DM] Records not found!");
+			return rehashDataFile(df, record, tid, next_pid);
+		}else{
+			for(int i=0;i<p.size();i++){
+				Record cur_r = p.get(i);
+				if(cur_r.ID>=record.ID){
+					if(cur_r.ID==record.ID){
+						if(!p.setAtIndex(i, record)){
+							System.out.println("Have to be able to update this record!");
+							System.exit(0);
+						}else{
+							journal.addEntry(tid, df.df_id, p.page_id, cur_r.toString(), record.toString());
+							return next_pid;
+						}
+					}else if(cur_r.ID>record.ID){
+						if(!p.addAtIndex(i, record)){
+							return rehashDataFile(df, record, tid, next_pid);
+						}else{
+							journal.addEntry(tid, df.df_id, p.page_id, null, record.toString());
+							return next_pid;
+						}
+					}else{
+						System.out.println("This record can not be less here.");
+						System.exit(0);
+					}
+				}else if(i==Page.RECORDS_PER_PAGE-1){
+					return rehashDataFile(df, record, tid, next_pid);
+					
+				}else if(i==p.size()-1){
+					if(!p.add(record)){
+						System.out.println("This should not trip!");
+						System.exit(0);
+					}else{
+						journal.addEntry(tid, df.df_id, p.page_id, null, record.toString());
+						return next_pid;
+					}
+				}
+			}
+			
+		}
+		return next_pid;
+	}
+
 	private void undoAbortedTransaction(int tid) {
 		//Get list of operations to undo
 		ArrayList<JournalEntry> undos = journal.undoByTID(tid);
 		if(undos==null || undos.isEmpty()) return;
 		
-		//TODO implement the rest of this!
+		while(!undos.isEmpty()){
+			JournalEntry cur = undos.remove(0);
+			DataFile df = getDataFileByDFID(cur.df_id);
+			//If deleted file: restore the old data file
+			if(Integer.parseInt(cur.before_image) == cur.df_id){
+	
+					//TODO implement the rest of this!
+				return;
+			}
+			//If file created: Delete that datafile
+			if(Integer.parseInt(cur.after_image) == cur.df_id){
+				df.isDeleted = true;
+				df.close();
+				df.delete();
+				data_files.remove(df);
+				return;
+			}
+			//If an update: execute the before image
+			if(!cur.before_image.equals("-1") && !cur.after_image.equals("-1")){
+				Record before_r = new Record(cur.before_image);
+				if(search_method.endsWith("scan")){
+					next_global_page_id = addRecordToFileScan(df, before_r, tid, next_global_page_id);
+				}else if(search_method.equals("hash")){
+					next_global_page_id = addRecordToFileHash(df, before_r, tid, next_global_page_id);
+				}else{
+					System.out.println("Bad search method.");
+					System.exit(0);
+				}
+			}
+			
+			// If an add: execute a delete record
+			if(cur.before_image.equals("-1") && !cur.after_image.equals("-1")){
+				//TODO write this function
+			}
+		}
 	}
 
 	private void flushBufferedPageByDataFile(DataFile df) {
@@ -306,7 +361,6 @@ public class DataManager extends Thread {
 		new_df.initializeDataFileSize(df.BlockCount() * 2);
 		data_files.add(new_df);
 
-		//			new_df.outputStream = new ObjectOutputStream(bos);
 		for(int i=0;i<df.BlockCount();i++){
 			if(df.getPageIDByBlockID(i)==-1)continue;
 			Page p = loadPage(df,tid,i);
@@ -322,9 +376,8 @@ public class DataManager extends Thread {
 					new_page = loadPage(new_df,tid,new_bid);
 				}
 				if(new_page==null){
-					new_page = new Page(new_df.df_id, next_pid, new_bid, next_global_LSN);
+					new_page = new Page(new_df.df_id, next_pid, new_bid);
 					next_pid++;
-					next_global_LSN+=1;
 					new_df.setPageIDInBlockIDIndex(new_page.block_id,new_page.page_id);
 					new_page.dirtied_by.add(tid);
 				}
@@ -470,14 +523,15 @@ public class DataManager extends Thread {
 				removePageInBuffer(df, null);
 			}
 			//Page creation
-			Page p = new Page(df.df_id, next_pid, 0, next_global_LSN);
-			next_global_LSN+=1;
+			Page p = new Page(df.df_id, next_pid, 0);
 			df.addPageIDToBlockIDIndex(p.block_id,p.page_id);
 			p.dirtied_by.add(tid);
 
 			if(!p.add(new_r)){
 				System.out.println("Must be able to add to this page.");
 				System.exit(-1);
+			}else{
+				journal.addEntry(tid, df.df_id, -1, -1, df.df_id);
 			}
 			addToBuffer(p);
 
@@ -506,18 +560,35 @@ public class DataManager extends Thread {
 				}
 				for(int i=0;i<loc_page.size();i++){
 					Record cur_r = loc_page.get(i);
-					if(cur_r.ID>new_r.ID){
-						if(!loc_page.addAtIndex(i, new_r)){
-							return splitPage(df, loc_page, new_r, next_pid, tid, i);
+					if(cur_r.ID>=new_r.ID){
+						if(cur_r.ID == new_r.ID){
+							if(!loc_page.setAtIndex(i, new_r)){
+								System.out.println("Updating existing record can't fail.");
+								System.exit(0);
+							}else{
+								journal.addEntry(tid, df.df_id, loc_page.page_id, cur_r.toString(), new_r.toString());
+								return next_pid;
+							}
+						}else if(cur_r.ID>new_r.ID){
+							if(!loc_page.addAtIndex(i, new_r)){
+								return splitPage(df, loc_page, new_r, next_pid, tid, i);
+							}else{
+								journal.addEntry(tid, df.df_id, loc_page.page_id, null, new_r.toString());
+								return next_pid;
+							}
 						}
-						return next_pid;
 					}else if(i==Page.RECORDS_PER_PAGE-1){
 						return splitPage(df, loc_page, new_r, next_pid, tid, i);
 					}
 				}
 				//Add to end
-				loc_page.add(new_r);
-				return next_pid;
+				if(!loc_page.add(new_r)){
+					System.out.println("Adding record can't fail here.");
+					System.exit(0);
+				}else{
+					journal.addEntry(tid, df.df_id, loc_page.page_id, null, new_r.toString());
+					return next_pid;
+				}
 
 			}else{
 				System.out.println("Bad location: "+location);
@@ -637,36 +708,45 @@ public class DataManager extends Thread {
 		if(buffer.size() == buffer_size){
 			removePageInBuffer(df, old_p);
 		}
-		//Page creation
-		Page new_p = new Page(df.df_id, next_pid, old_p.block_id+1, next_global_LSN);
-		next_global_LSN+=1;
-		//	df.addPageIDToBlockIDIndex(new_p.block_id,new_p.page_id);
+		//Create new page
+		Page new_p = new Page(df.df_id, next_pid, old_p.block_id+1);
 		new_p.dirtied_by.add(tid);
 
-
-
+		//If not the first index then the record goes in first spot in new page
 		if(i!=0){
 			df.addPageIDToBlockIDIndex(new_p.block_id,new_p.page_id);
-			if(!new_p.add(r)){		//Add the new record at beginning of new page
-				System.out.println("[DM] Can not add to this page!");
+			//Add the new record at beginning of new page
+			if(!new_p.add(r)){		
+				System.out.println("Adding record can't fail here.");
+				System.exit(0);
+			}else{
+				journal.addEntry(tid, df.df_id, new_p.page_id, null, r.toString());
+				return next_pid;
 			}
 			flushPage(df, new_p);
 		}
-		//If NOT the last record in page then
+		
+		//If NOT the last record in page then move all that are after i into new page
 		if(i!=Page.RECORDS_PER_PAGE-1){
 			//Move record from i...last
 			while(old_p.size()!=i){
-				if(!new_p.add(old_p.remove(i))){
+				Record cur_r = old_p.remove(i);
+				journal.addEntry(tid, df.df_id, old_p.page_id, cur_r.toString(), null);
+				if(!new_p.add(cur_r)){
 					System.out.println("Must have room in this page.");
 					System.exit(0);
+				}else{
+					journal.addEntry(tid, df.df_id, new_p.page_id, null, cur_r.toString());
 				}
 			}
 		}
-
+		// If i is zero only add the new record to the new page
 		if(i==0){
 			df.addPageIDToBlockIDIndex(new_p.block_id,new_p.page_id);
 			if(!old_p.add(r)){		//Add the new record at beginning of OLD page
 				System.out.println("[DM] Can not add to this page!");
+			}else{
+				journal.addEntry(tid, df.df_id, old_p.page_id, null, r.toString());
 			}
 			flushPage(df, new_p);
 		}
@@ -746,9 +826,7 @@ public class DataManager extends Thread {
 							records[i] = df.raf.readLine();
 							line_ctr++;
 						}
-						Page p = new Page(df.df_id, header_parts[1],
-								header_parts[3], records, next_global_LSN);
-						next_global_LSN++;
+						Page p = new Page(df.df_id, header_parts[1], header_parts[3], records);
 						p.fixed_by.add(new Integer(tid));
 						return p;
 					}
@@ -763,71 +841,6 @@ public class DataManager extends Thread {
 
 		return null;
 	}
-
-	//public Page loadPage(DataFile df, int tid, int bid){
-	//	if(bid<0 || bid>df.BlockCount()|| -1==df.getPageIDByBlockID(bid)) return null;
-	//	int bid_ctr=0;
-	//	try {
-	//
-	//		df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-	//		while(df.inputStream.available()>0){
-	//			Page p = (Page)df.inputStream.readObject();
-	//			if(bid_ctr==bid){
-	//				if(p.block_id==bid){
-	//					System.out.println("Both block ids match");
-	//				}
-	//				return p;
-	//			}
-	//			bid_ctr++;
-	//		}
-	//	}catch (EOFException e) {
-	//		//This means there is no page
-	//		return null;
-	//	}catch (IOException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	} catch (ClassNotFoundException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	}
-	//	return null;
-	//}
-
-	// Old loadPage using seek. Might not work
-	//public Page loadPage(DataFile df, int tid, int block_id){
-	//	Page page;
-	//	
-	//	try {		
-	//		if(block_id<0 || block_id>=df.BlockCount()||-1==df.getPageIDByBlockID(block_id)) return null;
-	//		
-	//		long pos = Page.PAGE_SPACING_BYTES * block_id;
-	//		FileChannel fc = df.fis.getChannel().position(pos);
-	//		System.out.println(fc.position()+" "+fc.size());
-	//		df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-	//		page = (Page)df.inputStream.readObject();
-	//		page.fixed_by.add(tid);
-	//		//If not check if buffer is full if so do replacement, else just add Page
-	//		if(buffer.size()==buffer_size){
-	//			removePageInBuffer(df, null);
-	//		}
-	//		addToBuffer(page);
-	////		System.out.println("PAGE LOADED: "+page);
-	//		
-	//		return page;
-	//	}catch (EOFException e){
-	////		e.printStackTrace();
-	//		System.out.println("[DM] Page not found!");
-	//		return null;
-	//	}
-	//	catch (IOException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	} catch (ClassNotFoundException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	}
-	//	return null;
-	//}
 
 	/**
 	 * @param df - DataFile to flush to
@@ -860,8 +873,7 @@ public class DataManager extends Thread {
 							records[i] = df.raf.readLine();
 							line_ctr++;
 						}
-						Page page_in_file = new Page(df.df_id, header_parts[1], header_parts[3], records, next_global_LSN);
-						next_global_LSN++;
+						Page page_in_file = new Page(df.df_id, header_parts[1], header_parts[3], records);
 						//Write
 						df.raf.seek(fd_ptr_before);
 
@@ -901,182 +913,4 @@ public class DataManager extends Thread {
 
 		return false;
 	}
-
-	//public boolean flushPage(DataFile df, Page page_in_buffer){
-	//	int bid_ctr=0;
-	//	try {
-	//		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-	//		df.outputStream = new ObjectOutputStream(bos);
-	////		df.fos.getChannel().position(0);
-	//		System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
-	//		System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
-	//		
-	//		try {
-	////			df.fis.getChannel().position(0);
-	//			df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-	//			df.fis.getChannel().position(0);
-	//			
-	//		} catch (EOFException e) {
-	//			byte o[] = toBytes(page_in_buffer);
-	//			df.outputStream.writeObject(page_in_buffer);
-	//			df.outputStream.flush();
-	//			bos.writeTo(df.fos);
-	//			System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
-	//			System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
-	//			return true;
-	//		}catch (Exception e){
-	//			e.printStackTrace();
-	//			System.exit(0);
-	//		}
-	//
-	//		System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
-	//		System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
-	//		while(df.fis.getChannel().position()<df.fis.getChannel().size()){
-	////			df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-	//			System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
-	//			System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
-	//
-	//			Page page_in_file = (Page)df.inputStream.readObject();
-	//			Page p2 = (Page)df.inputStream.readObject();
-	//
-	//			byte [] b = toBytes(page_in_file);
-	//			df.fis.getChannel().position(b.length);
-	//
-	//			System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
-	//			System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
-	//			
-	//			if(page_in_file.block_id == page_in_buffer.block_id || page_in_buffer.block_id==bid_ctr){
-	//				df.outputStream.writeObject(page_in_buffer);
-	//				df.outputStream.flush();
-	////				df.fos.getChannel().position(df.fis.getChannel().position());
-	//				bos.writeTo(df.fos);
-	//				System.out.println("FIS: "+df.fis.getChannel().position()+" "+df.fis.getChannel().size());
-	//				System.out.println("FOS: "+df.fos.getChannel().position()+" "+df.fos.getChannel().size());
-	////			buffer.remove(page_in_buffer);
-	//				if(page_in_file.page_id != page_in_buffer.page_id){
-	//					if(page_in_file.block_id == page_in_buffer.block_id){
-	//						page_in_file.block_id++;
-	//					}
-	//					return flushPage(df, page_in_file);
-	//				}
-	//				return true;
-	//			}
-	//			bid_ctr++;
-	//		}
-	//		df.outputStream.writeObject(page_in_buffer);
-	//		df.outputStream.flush();
-	//		bos.writeTo(df.fos);
-	//		return true;
-	//	}catch (EOFException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	}catch (IOException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	} catch (ClassNotFoundException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	}
-	//	return false;
-	//}
-
-	// Old flushPage function. Might not work all the time
-	///**
-	// * @param page_in_buffer; NOTE must be removed from buffer else where
-	// * @return if it was flushed or not
-	// */
-	//public boolean flushPage(DataFile df, Page page_in_buffer){
-	//	System.out.println("FLUSHING:\n"+page_in_buffer);
-	//	
-	////	DataFile df = getDataFileByName(page_in_buffer.file_of_origin);
-	////	if(df==null && page_in_buffer.file_of_origin.contains("_TEMP")){
-	////		page_in_buffer.file_of_origin = page_in_buffer.file_of_origin.split("_TEMP")[0];
-	////		df = getDataFileByName(page_in_buffer.file_of_origin);
-	////		if(df == null){
-	////			System.exit(0);
-	////		}
-	////	}
-	////	page_in_buffer.block_id = df.getPIDIndexByPID(page_in_buffer.page_id);
-	//	
-	//		Page page_in_file = null;
-	//		//Position
-	//		long pos = page_in_buffer.block_id * Page.PAGE_SPACING_BYTES;
-	//
-	//		ByteArrayOutputStream bos = new ByteArrayOutputStream(Page.PAGE_SPACING_BYTES);
-	//		try {
-	//			df.outputStream = new ObjectOutputStream(bos);
-	//			// If this page does not already exist get it's version from the file
-	//			if(page_in_buffer.page_id!=page_in_buffer.block_id){
-	//				FileChannel fc = df.fis.getChannel().position(pos);
-	////				System.out.println(fc.position()+" "+fc.size()+" "+df.fis.available());
-	//				if(fc.position()<fc.size()){
-	//					df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-	//					page_in_file = (Page)df.inputStream.readObject();
-	//				}
-	////			df.inputStream.close();
-	//			}
-	//		} catch (IOException e1) {
-	//			e1.printStackTrace();
-	//			System.exit(0);
-	//		} catch (ClassNotFoundException e1) {
-	//			e1.printStackTrace();
-	//		}
-	//		try {
-	//		//Current LSN will become stable & LSN will be zero while not in memory buffer
-	//		page_in_buffer.stableLSN = page_in_buffer.LSN;
-	//		page_in_buffer.LSN = 0;
-	//		
-	//		df.outputStream.writeObject(page_in_buffer);
-	//		df.outputStream.flush();
-	//		FileChannel fc_o=null, fc_a=null;
-	//		//If the page_id in file is different from the one in buffer APPEND
-	//		if(null != page_in_file && page_in_file.page_id != page_in_buffer.page_id){
-	//			//Get the page to be over written
-	//			FileChannel fc = df.fis.getChannel().position(pos);
-	////			System.out.println(fc.position()+" "+fc.size());
-	//			if(fc.position()<fc.size()){
-	//				df.inputStream = new ObjectInputStream(new BufferedInputStream(df.fis));
-	//				page_in_file = (Page)df.inputStream.readObject();
-	//			}
-	//			
-	//			fc_a = df.fos_overwrite.getChannel().position(pos);
-	//			System.out.println("Aft:"+fc_a.position()+" "+fc_a.size());
-	//			bos.writeTo(df.fos_overwrite);
-	////			bos.w
-	//			bos.flush();
-	////			System.out.println(fc_a.position()+" "+fc_a.size());
-	//			page_in_file.block_id++;
-	////			if(fc.position()<fc.size()){
-	//				flushPage(df, page_in_file);
-	////			}
-	////			System.exit(0);
-	//		}else{
-	////			df.fos_append.getChannel().position(pos);
-	////			bos.writeTo(df.fos_append);
-	//			fc_a = df.fos_overwrite.getChannel().position(pos);
-	//			System.out.println("Bef"+fc_a.position()+" "+fc_a.size());
-	//			long before_size = fc_a.size();
-	//			bos.writeTo(df.fos_overwrite);
-	//			while(fc_a.size()<(before_size+Page.PAGE_SPACING_BYTES)){
-	//				bos.write(0);
-	//			}
-	//			bos.flush();
-	//			System.out.println("Aft"+fc_a.position()+" "+fc_a.size());
-	////			System.exit(0);
-	//		}
-	//		df.outputStream.close();
-	////		df.fos_append.close();
-	//		return true;
-	//	} catch (IOException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	} 
-	//	catch (ClassNotFoundException e) {
-	//		e.printStackTrace();
-	//		System.exit(0);
-	//	}
-	//
-	//	return false;
-	//}
-
 }
