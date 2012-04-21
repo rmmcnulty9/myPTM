@@ -15,27 +15,21 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	int df_id;
 	ArrayList <Integer> dirtied_by;
 	ArrayList <Integer> fixed_by;
-	int LSN;
-	int stableLSN;
 
-	public Page(int dfid, int p, int b, int _LSN){
+	public Page(int dfid, int p, int b){
 		df_id= dfid;
 		page_id = p;
 		block_id = b;
 		dirtied_by = new ArrayList <Integer>();
-		fixed_by = new ArrayList <Integer>();
-		LSN = _LSN;
-		stableLSN = 0;		
+		fixed_by = new ArrayList <Integer>();	
 	}
 
-	public Page(int dfid, String pid, String bid, String[] records, int _LSN) {
+	public Page(int dfid, String pid, String bid, String[] records) {
 		df_id= dfid;
 		page_id = Integer.parseInt(pid);
 		block_id = Integer.parseInt(bid);
 		dirtied_by = new ArrayList <Integer>();
 		fixed_by = new ArrayList <Integer>();
-		LSN = _LSN;
-		stableLSN = 0;		
 		
 		for(int i=0;i<records.length;i++){
 			if(!records[i].contains("~~ FREE ~~")) this.add(new Record(records[i]));
@@ -71,9 +65,19 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 	public boolean addAtIndex(int i, Record r){
 		if(r==null){
 			System.out.println("null!!!");
+			return false;
 		}
 		if ((this.size()+1)> RECORDS_PER_PAGE) return false;
 		super.add(i,r);
+		return true;
+	}
+	
+	public boolean setAtIndex(int i, Record r){
+		if(r==null){
+			System.out.println("null!!!");
+			return false;
+		}
+		super.set(i,r);
 		return true;
 	}
 	
