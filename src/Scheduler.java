@@ -31,9 +31,9 @@ public class Scheduler extends Thread{
     private LockTree lockTree = null;
 
     // Our DM reference.
-	//private DataManager dm_task = null;
+	private DataManager dm_task = null;
 	// TODO: (jmg199) FOR DEBUGGING ONLY.
-	private DataManagerSim dm_task = null;
+	//private DataManagerSim dm_task = null;
 
     // Our TM reference.
     private TranscationManager tm_task = null;
@@ -89,8 +89,8 @@ public class Scheduler extends Thread{
         // Create the DM if needed.
 		if(dm_task == null){
 			// TODO: (jmg199) UNCOMMENT AFTER DEBUGGING.
-			//dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
-			dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
+			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
+			//dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
 			System.out.println("[Sched] Started DataManager...");
 			dm_task.start();
 		}
