@@ -159,6 +159,9 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	 */
 	public void acquireFileLock(Transaction targetTxn){
 		txnGrantedFileLock = targetTxn;
+		
+		// Store this file lock in the target txn.
+		targetTxn.grantedFileLocks.add(this);
 	}
 
 

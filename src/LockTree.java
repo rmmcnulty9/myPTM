@@ -36,6 +36,9 @@ public class LockTree {
 		RecordLockTree recordTree = fileTree.get(currOp.filename);
 
 		if (recordTree == null){
+			// TODO: (jmg199) REMOVE AFTER TESTING.
+			System.out.println("[Sched.LockTree] Need new RecordLockTree for file [" + currOp.filename + "]");
+			
 			// No locks yet exist for this file.
 			recordTree = new RecordLockTree();
 
@@ -71,6 +74,9 @@ public class LockTree {
 		}
 		else{
 			// TODO: (jmg199) REMOVE AFTER TESTING.
+			System.out.println("[Sched.LockTree] Located RecordLockTree for file [" + currOp.filename + "]");
+			
+			// TODO: (jmg199) REMOVE AFTER TESTING.
 			System.out.println("[Sched.LockTree] OPERATION TYPE [" + currOp.type + "]");
 
 			if (currOp.type.equals("D")){
@@ -91,7 +97,7 @@ public class LockTree {
 				}
 				else {
 					// TODO: (jmg199) REMOVE AFTER TESTING.
-					System.out.println("[Sched.LockTree] Attempting to acquire file lock.");
+					System.out.println("[Sched.LockTree] Attempting to acquire file lock for file [" + currOp.filename + "]");
 					
 					return recordTree.attemptAcquireFileLock(targetTxn);
 				}

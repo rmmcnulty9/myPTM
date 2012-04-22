@@ -32,6 +32,8 @@ public class Scheduler extends Thread{
 
     // Our DM reference.
 	private DataManager dm_task = null;
+	// TODO: (jmg199) FOR DEBUGGING ONLY.
+	//private DataManagerSim dm_task = null;
 
     // Our TM reference.
     private TranscationManager tm_task = null;
@@ -86,7 +88,9 @@ public class Scheduler extends Thread{
 	public void run(){
         // Create the DM if needed.
 		if(dm_task == null){
+			// TODO: (jmg199) UNCOMMENT AFTER DEBUGGING.
 			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
+			//dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
 			System.out.println("[Sched] Started DataManager...");
 			dm_task.start();
 		}
@@ -209,7 +213,13 @@ public class Scheduler extends Thread{
     	while (iter.hasNext()){
     		currTxn = iter.next();
 
+    		// TODO: (jmg199) REMOVE AFTER TESTING.
+    		System.out.println("Checking if stalled txn ID[" + currTxn.tid + "] can be restarted.");
+        		
     		if (!currTxn.isEmpty()){
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			System.out.println("Txn ID[" + currTxn.tid + "] now has [" + currTxn.size() + "] ops.");
+    			
     			// Now that there is an op, schedule it and remove the txn
     			// from the stalled list.
     			scheduleNextOp(currTxn);
@@ -274,7 +284,16 @@ public class Scheduler extends Thread{
             // where a completed op is removed, but the parent txn is not yet
             // removed from the deadlock list when the poll timer fires.
             synchronized(this){
+            	// TODO: (jmg199) REMOVE AFTER TESTING.
+            	for (int index = 0; index < completed_ops.size(); ++index) {
+            		currOp = completed_ops.get(index);
+            		System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
+            	}
+            	
                 currOp = completed_ops.remove(0);
+                
+            	// TODO: (jmg199) REMOVE AFTER TESTING.
+            	System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
 
                 parentTxn = transactions.getByTID(currOp.tid);
             }
@@ -324,20 +343,35 @@ public class Scheduler extends Thread{
     	Iterator<RecordLockTree> fileLockIter = sourceTxn.grantedFileLocks.iterator();
     	RecordLockTree currRecTree;
     	
+    	// TODO: (jmg199) REMOVE AFTER TESTING.
+    	System.out.println("[Sched] Releasing txn: Num granted file locks [" + sourceTxn.grantedFileLocks.size() + "]");
+    	
     	// This variable stores the reference to a queued txn which was then granted this
     	// lock being released.
     	Transaction queuedTxnGrantedLock;
     	boolean hasPendingFileLocks = false;
 
     	while (fileLockIter.hasNext()){
+    		// TODO: (jmg199) REMOVE AFTER TESTING.
+    		System.out.println("[Sched] Releasing all *file* locks.");
+    		
     		currRecTree = fileLockIter.next();
 
     		// Must be checked before releasing the file lock.
     		hasPendingFileLocks = currRecTree.hasQueuedFileLocks();
 
+    		// TODO: (jmg199) REMOVE AFTER TESTING.
+    		if (hasPendingFileLocks) {
+    			System.out.println("[Sched] There are pending file locks.");
+    		}
+    		
     		queuedTxnGrantedLock = currRecTree.releaseFileLock();
 
     		if (queuedTxnGrantedLock != null){
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			System.out.println("[Sched] Txn ID [" + queuedTxnGrantedLock.tid + 
+    					"] was granted the file lock and will now be scheduled.");
+    			
     			// There was a transaction waiting for the released
     			// lock and it was able to get it.
 
