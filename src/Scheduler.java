@@ -285,13 +285,20 @@ public class Scheduler extends Thread{
             // removed from the deadlock list when the poll timer fires.
             synchronized(this){
             	// TODO: (jmg199) REMOVE AFTER TESTING.
+                Operation currOpTemp = null;
             	for (int index = 0; index < completed_ops.size(); ++index) {
-            		currOp = completed_ops.get(index);
-            		System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
+            		currOpTemp = completed_ops.get(index);
+            		System.out.println("[Sched] Before remove: Operations to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
             	}
             	
                 currOp = completed_ops.remove(0);
                 
+            	// TODO: (jmg199) REMOVE AFTER TESTING.
+            	for (int index = 0; index < completed_ops.size(); ++index) {
+            		currOpTemp = completed_ops.get(index);
+            		System.out.println("[Sched] After remove: Operation to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
+            	}
+            	
             	// TODO: (jmg199) REMOVE AFTER TESTING.
             	System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
 
@@ -380,7 +387,7 @@ public class Scheduler extends Thread{
     			queuedTxnGrantedLock.opStart = DateTime.now();
 
     			// Send the txn's operation to the DM.
-            	scheduled_ops.add(sourceTxn.get(0));
+            	scheduled_ops.add(queuedTxnGrantedLock.get(0));
     		}
     		else if(hasPendingFileLocks){
     			// We had a pending file lock which was not granted. Therefore
