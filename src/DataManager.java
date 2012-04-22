@@ -76,7 +76,7 @@ public class DataManager extends Thread {
 					completed_ops.add(op);
 					continue;
 				}else if(op.type.equals("C")){
-					System.out.println("[DM] Committing...");
+					System.out.println("[DM] Committing TID: "+op.tid+"...");
 					flushTransactionsPages(op.tid);
 					//Clean those entries from the Journal
 					ArrayList<Integer> old_df_ids = journal.cleanByTID(op.tid);
@@ -146,7 +146,7 @@ public class DataManager extends Thread {
 						df.isDeleted = true;
 						File df_newf = new File(df.filename+"_"+df.df_id);
 						if(!df.f.renameTo(df_newf)){
-							System.out.println("Failed to rename new datafile.");
+							System.out.println("Failed to rename backup datafile.");
 							System.exit(0);
 						}
 						df.f = df_newf;
@@ -201,7 +201,7 @@ public class DataManager extends Thread {
 						df.isDeleted = true;
 						File df_newf = new File(df.filename+"_"+df.df_id);
 						if(!df.f.renameTo(df_newf)){
-							System.out.println("Failed to rename new datafile.");
+							System.out.println("Failed to rename backup datafile.");
 							System.exit(0);
 						}
 						df.f = df_newf;
@@ -330,7 +330,7 @@ public class DataManager extends Thread {
 				
 				File new_df_newf = new File(df.filename);
 				if(!df.f.renameTo(new_df_newf)){
-					System.out.println("Failed to rename new datafile.");
+					System.out.println("Failed to rename old datafile in restore.");
 					System.exit(0);
 				}
 				df.f = new_df_newf;
@@ -467,7 +467,7 @@ public class DataManager extends Thread {
 		//Rename the DataFile for backup purposes
 		File df_newf = new File(df.filename+"_"+df.df_id);
 		if(!df.f.renameTo(df_newf)){
-			System.out.println("Failed to rename new datafile.");
+			System.out.println("Failed to rename old datafile.");
 			System.exit(0);
 		}
 		File new_df_newf = df.f;
