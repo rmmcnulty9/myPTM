@@ -15,6 +15,10 @@ public class LockType {
 	public Transaction lockHolder;
 	public RecordLock parentRecordLock = null;
 	
+	
+	/*
+	 * 
+	 */
 	public LockType(Transaction _lockHolder, RecordLock _parentRecordLock){
 		// Set the lock type.
 		// (NOTE: Deletes are handled in file locks. Aborts and Commits never show up here.)

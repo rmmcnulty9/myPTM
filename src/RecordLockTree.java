@@ -209,6 +209,7 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 		}
 	}
 
+	
 	/*
 	 * This method determines if a *record* lock can be acquired solely based on the
 	 * state of the record lock tree. It assumes that
@@ -217,6 +218,7 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	public boolean isBlockedByFileLock(Transaction targetTransaction){
 		if (txnGrantedFileLock != null){
 			// It's only blocked if the lock holder isn't the target transaction.
+			// TODO: (jmg199) REMOVE AFTER TESTING.
 //			if (targetTransaction == txnGrantedFileLock){
 			if (targetTransaction.equals(txnGrantedFileLock)){
 				return false;
@@ -272,23 +274,6 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 		}
 
 		return nextTxn;
-
-		// TODO: (jmg199) THIS CAN'T BE HERE. IT HAS TO BE RELOCATED.
-		// There is at least one record lock queued earlier
-		// than the next file lock request. Traverse all queued
-		// locks to find them.
-		/*
-		Iterator<Lock> iter = queuedRecLockList.iterator();
-		Lock currLock;
-		Transaction queuedTxn;
-
-		while (iter.hasNext()){
-			// Check the current queued lock opStart with the
-			// one queued for the file lock.
-			currLock = iter.next();
-
-			queuedTxn = currLock.getNextQueuedTxn();
-		*/
 	}
 
 

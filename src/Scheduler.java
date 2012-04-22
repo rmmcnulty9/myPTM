@@ -3,8 +3,6 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.joda.time.DateTime;
-import org.joda.time.Duration;
-import org.joda.time.Interval;
 
 
 public class Scheduler extends Thread{
@@ -29,18 +27,8 @@ public class Scheduler extends Thread{
     // due to operations not being available from the TM.
     private TransactionList stalledTxns = null;
 
-    // TODO: (jmg199) NEED A DEAD LOCK QUEUE OF SOME SORT. NOT SURE WHAT THIS WILL BE YET.
-    // **** NEED TO THINK ABOUT HOW THE SCHEDULED OPS LIST CAN GET FILLED AS FAST AS POSSIBLE
-    //      (POSSIBLY HAVING MORE THAN ONE OP FROM THE SAME TXN QUEUED UP, BUT STILL BE ABLE
-    //      TO DETECT DEAD LOCKS.
-    private TransactionList deadlockList = null;
-    private Duration deadlockThreshold = null;
-
+    // This is the file level lock. It contains the record lock trees.
     private LockTree lockTree = null;
-
-    // This list is used to keep track of which txns still need to commit/abort.
-    // TODO: (jmg199) THIS PROBABLY WON"T BE NEEDED. CLEAN UP AFTER TESTING.
-    //private ArrayList<Integer> pendingTxnIds = null;
 
     // Our DM reference.
 	private DataManager dm_task = null;
@@ -71,7 +59,6 @@ public class Scheduler extends Thread{
 		scheduled_ops = new ArrayList<Operation>();
         completed_ops = new ArrayList<Operation>();
         stalledTxns = new TransactionList();
-        deadlockList = new TransactionList();
         lockTree = new LockTree();
         txnMgrDoneFlag = false;
         dataMgrExitFlag = false;
@@ -191,12 +178,6 @@ public class Scheduler extends Thread{
         		sourceTxn.txnStart = sourceTxn.opStart;
         	}
 
-        	// Add the transaction to the deadlock list.
-        	// The txn must be added even if it is unable to acquire the lock
-        	// because it may be deadlocked with another transaction.
-        	// TODO: (jmg199) BECAUSE OF WOUND WAIT THIS WILL GO AWAY.
-        	deadlockList.add(sourceTxn);
-
         	// Commits and aborts do no need locks.
         	if ((!sourceTxn.get(0).type.equals("C")) && (!sourceTxn.get(0).type.equals("A"))) {
         		// Attempt to get a lock for it.
@@ -296,28 +277,6 @@ public class Scheduler extends Thread{
                 currOp = completed_ops.remove(0);
 
                 parentTxn = transactions.getByTID(currOp.tid);
-
-                // Remove the txn from the deadlock list. It will be returned when the next op is scheduled.
-                if (!deadlockList.remove(parentTxn)){
-                    System.out.println("[Sched] DID NOT REMOVE THE TXN FROM THE DEADLOCK LIST!");
-                }
-            }
-
-            if (deadlockThreshold == null){
-            	// Establish the deadlock threshold.
-            	Duration executionTime = (new Interval(parentTxn.opStart, DateTime.now())).toDuration();
-            	System.out.println("[Sched] Initial execution time: " + String.valueOf(executionTime.getMillis()));
-
-            	// Add a fudge factor to the execution time.
-            	executionTime = executionTime.plus((long)(executionTime.getMillis() * 0.5));
-            	System.out.println("[Sched] Fudged execution time: " + String.valueOf(executionTime.getMillis()));
-
-            	// Multiply by the number of concurrent transactions.
-            	executionTime = executionTime.withDurationAdded(executionTime.getMillis(), transactions.size());
-            	System.out.println("[Sched] Final deadlock execution time: " + String.valueOf(executionTime.getMillis()));
-
-            	// Store out newly calculated deadlockThreshold.
-            	deadlockThreshold = executionTime;
             }
 
             if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){
@@ -345,57 +304,6 @@ public class Scheduler extends Thread{
                 scheduleNextOp(parentTxn);
             }
         }
-    }
-
-
-
-    /* @summary
-     * This method is used to check for dead lock conditions.
-     */
-    public void deadlockCheck(){
-        // TODO: (jmg199) REMOVE AFTER TESTING.
-        System.out.println("[Sched] About to check for deadlocks!");
-
-        if (deadlockThreshold != null){
-            // Traverse the deadlock queue looking for any overrun transactions.
-            Iterator<Transaction> iter = deadlockList.iterator();
-            Transaction currTxn;
-
-            while (iter.hasNext()){
-            	currTxn = iter.next();
-            	Duration executionTime = (new Interval(currTxn.opStart, DateTime.now())).toDuration();
-
-            	// TODO: (jmg199) REMOVE AFTER TESTING.
-            	System.out.println("[Sched] Execution time for transaction [" + currTxn.tid + "]" + executionTime.toString() + ".");
-
-            	if (executionTime.isLongerThan(deadlockThreshold)){
-            		// TODO: (jmg199) REMOVE AFTER TESTING.
-            		System.out.println("[Sched] Deadlock detected on transaction [" + currTxn.tid + "]!");
-            		resolveDeadlock(currTxn);
-            	}
-            }
-            //for (int index = 0; index < deadlockList.size(); ++index){
-            //    //Duration executionTime = now.minus(deadlockList.get(index).opStart);
-            //
-
-            //    if (executionTime > deadlockThreshold){
-            //        System.out.println("[Sched] Deadlock detected! execTime:");
-            //        resolveDeadlock(deadlockList.get(index));
-            //    }
-            //}
-        }
-
-        //new PollTimer(20, this);
-    }
-
-
-
-    /* @summary
-     * This method is used to resolve deadlocks.
-     */
-    private void resolveDeadlock(Transaction targetTxn){
-    	// WOUND WAIT IMPLEMENTED ELSEWHERE.
-        // TODO: (jmg199) IMPLEMENT WOUND-WAIT.
     }
 
     
@@ -438,7 +346,7 @@ public class Scheduler extends Thread{
     			queuedTxnGrantedLock.opStart = DateTime.now();
 
     			// Send the txn's operation to the DM.
-//            	scheduled_ops.add(sourceTxn.get(0));
+            	scheduled_ops.add(sourceTxn.get(0));
     		}
     		else if(hasPendingFileLocks){
     			// We had a pending file lock which was not granted. Therefore

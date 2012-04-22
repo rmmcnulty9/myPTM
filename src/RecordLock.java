@@ -18,21 +18,10 @@ public class RecordLock{
     
     public int recordLockId;
     
-
-    /*
-     *
-     */
-    /*
-    public RecordLock(){
-    	grantedList = new TreeMap<Integer, LockType>();
-    	queuedList = new CopyOnWriteArrayList<LockType>();
-    }
-    */
     
     
-    
-    /*
-     *
+    /* @summary
+     * 	Class ctor.
      * 
      * @param	sourceLockType	The transaction is used to determine the
      * 							the id of the record for which the 
@@ -275,7 +264,6 @@ public class RecordLock{
     }
     
     
-    
     /*
      * 
      */
@@ -298,26 +286,6 @@ public class RecordLock{
     	
     	return targetLockType;
     }
-    
-
-
-    /*
-     * @summary
-     *
-     */
-    /* TODO: (jmg199) REMOVE AFTER TESTING.
-    public boolean removeByTID(CopyOnWriteArrayList<LockType> sourceList, int tid){
-        for (int i = 0; i < sourceList.size(); i++){
-            if(sourceList.get(i).lockHolder.tid == tid){
-                sourceList.remove(i);
-                
-                return true;
-            }
-        }
-
-        return false;
-    }
-    */
     
     
     /*
