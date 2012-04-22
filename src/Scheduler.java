@@ -31,9 +31,9 @@ public class Scheduler extends Thread{
     private LockTree lockTree = null;
 
     // Our DM reference.
-	private DataManager dm_task = null;
+	//private DataManager dm_task = null;
 	// TODO: (jmg199) FOR DEBUGGING ONLY.
-	//private DataManagerSim dm_task = null;
+	private DataManagerSim dm_task = null;
 
     // Our TM reference.
     private TranscationManager tm_task = null;
@@ -89,8 +89,8 @@ public class Scheduler extends Thread{
         // Create the DM if needed.
 		if(dm_task == null){
 			// TODO: (jmg199) UNCOMMENT AFTER DEBUGGING.
-			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
-			//dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
+			//dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
+			dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
 			System.out.println("[Sched] Started DataManager...");
 			dm_task.start();
 		}
@@ -389,11 +389,13 @@ public class Scheduler extends Thread{
     			// Send the txn's operation to the DM.
             	scheduled_ops.add(queuedTxnGrantedLock.get(0));
     		}
-    		else if(hasPendingFileLocks){
-    			// We had a pending file lock which was not granted. Therefore
-    			// at least one record lock was waiting (and had precedence) for
-    			// the file lock to be released. Therefore trigger a full
-    			// check of all queued record lock requests in this tree.
+    		else if(currRecTree.queuedRecLockTypeList.size() > 0){
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			System.out.println("[Sched] Will attempt to grant all record locks in record tree.");
+    			
+    			// Another file lock was not granted and there are record locks
+    			// waiting to be granted. All record locks must be traversed and
+    			// attempt to grant any queued records locks.
     			fullRecLockCheckList.add(currRecTree);
     		}
     	}
@@ -423,6 +425,9 @@ public class Scheduler extends Thread{
     	// Now check if file locks were released that were flagged as having
     	// record locks which need to be granted.
     	if (!fullRecLockCheckList.isEmpty()){
+    		// TODO: (jmg199) REMOVE AFTER TESTING.
+    		System.out.println("[Sched] Attempting to grant all record locks in record tree.");
+    			
     		Iterator<RecordLockTree> fullRecLockCheckIter = fullRecLockCheckList.iterator();
     		LockType currLockType = null;
 
@@ -434,7 +439,20 @@ public class Scheduler extends Thread{
     			for (Map.Entry<Integer, LockType> entry : currRecTree.queuedRecLockTypeList.entrySet()) {
     				currLockType = entry.getValue();
 
-    				currLockType.parentRecordLock.attemptAcquireForNextQueuedTxn();
+    				queuedTxnGrantedLock = currLockType.parentRecordLock.attemptAcquireForNextQueuedTxn();
+
+    	    		if (queuedTxnGrantedLock != null){
+    	    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    	    			System.out.println("[Sched] Txn ID [" + queuedTxnGrantedLock.tid + 
+    	    					"] was granted a record lock after the release of a file lock and will now be scheduled.");
+    	    			
+    	    			// Reset the operation start time since we now know
+    	    			// that it has the lock.
+    	    			queuedTxnGrantedLock.opStart = DateTime.now();
+
+    	    			// Send the txn's operation to the DM.
+    	            	scheduled_ops.add(queuedTxnGrantedLock.get(0));
+    	    		}	
     			}
     		}
 		}

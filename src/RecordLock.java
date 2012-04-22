@@ -71,7 +71,7 @@ public class RecordLock{
             parentRecLockTree.queuedRecLockTypeList.put(sourceLockType.lockHolder.tid, sourceLockType);
             
     		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.println("[Lock] Lock acquired for txn ID [" + sourceTxn.tid + "]");
+    		System.out.println("[Lock] Queuing txn ID [" + sourceTxn.tid + "] for record lock ID [" + recordLockId + "]");
     		
             return false;
         }
@@ -130,6 +130,15 @@ public class RecordLock{
     			// a pending file lock was queued earlier than it. So check
     			// if the file lock was waiting for the release of this lock.
     			nextTxn = parentRecLockTree.attemptAcquireQueuedFileLock();
+    			
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			if (nextTxn != null) {
+    				System.out.println("[Sched] TxnId [" + nextTxn.tid + "] was granted *file* lock after release of record lock ID [" + recordLockId + "]");
+    			}
+    		}
+    		else {
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			System.out.println("[Sched] TxnId [" + nextTxn.tid + "] was granted record lock ID [" + recordLockId + "]");
     		}
     	
     		return nextTxn;
