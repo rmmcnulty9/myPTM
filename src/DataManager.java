@@ -793,6 +793,7 @@ public class DataManager extends Thread {
 				System.out.println("Adding record can't fail here.");
 				System.exit(0);
 			}else{
+				addToBuffer(new_p);
 				if(log_op)journal.addEntry(tid, df.df_id, new_p.page_id, null, r.toString());
 				return next_pid;
 			}
@@ -809,6 +810,7 @@ public class DataManager extends Thread {
 					System.out.println("Must have room in this page.");
 					System.exit(0);
 				}else{
+					addToBuffer(new_p);
 					if(log_op)journal.addEntry(tid, df.df_id, new_p.page_id, null, cur_r.toString());
 				}
 			}
@@ -819,12 +821,12 @@ public class DataManager extends Thread {
 			if(!old_p.add(r)){		//Add the new record at beginning of OLD page
 				System.out.println("[DM] Can not add to this page!");
 			}else{
+				addToBuffer(new_p);
 				if(log_op)journal.addEntry(tid, df.df_id, old_p.page_id, null, r.toString());
 			}
 			flushPage(df, new_p);
 		}
 
-		addToBuffer(new_p);
 		//	flushPage(df,old_p);
 		//	flushPage(df,new_p);
 
