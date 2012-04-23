@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -33,9 +34,9 @@ public class Scheduler extends Thread{
     private LockTree lockTree = null;
 
     // Our DM reference.
-	//private DataManager dm_task = null;
+	private DataManager dm_task = null;
 	// TODO: (jmg199) FOR DEBUGGING ONLY.
-	private DataManagerSim dm_task = null;
+	//private DataManagerSim dm_task = null;
 
     // Our TM reference.
     private TranscationManager tm_task = null;
@@ -105,18 +106,11 @@ public class Scheduler extends Thread{
         // Create the DM if needed.
 		if(dm_task == null){
 			// TODO: (jmg199) UNCOMMENT AFTER DEBUGGING.
-			//dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
-			dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
+			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
+			//dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
 			System.out.println("[Sched] Started DataManager...");
 			dm_task.start();
 		}
-
-
-        // Start the dead lock poll timer thread.
-		// TODO: (jmg199) THIS WILL BE REMOVED.
-        //System.out.println("[Sched] Starting poll timer...");
-        //new PollTimer(20, this);
-
 
         // Check each transaction in the transaction list and try to schedule
         // the first operation for each.
@@ -132,25 +126,6 @@ public class Scheduler extends Thread{
             scheduleStalledTxns();
 
             processCompletedOps();
-            
-            // Give the timer thread a chance to run.
-            //try {
-			//	sleep(2);
-			//} catch (InterruptedException e) {
-			//	// TODO Auto-generated catch block
-			//	e.printStackTrace();
-			//}
-
-            // TODO: (jmg199) CLEAN UP AFTER TESTING.
-			//if(!transactions.get(0).isEmpty()){
-			//	Operation currOp = transactions.get(0).get(0);
-			//	transactions.get(0).remove(0);
-			//	if(currOp.type.equals("B")){
-			//		continue;
-			//	}
-			//	System.out.println("Scheduled this operation: "+currOp.toString());
-			//	scheduled_ops.add(currOp);
-			//}
 		}
 
         dm_task.setSchedDoneFlag();
@@ -179,9 +154,31 @@ public class Scheduler extends Thread{
         System.out.println("------------- Performance Data -------------");
         System.out.println("Transaction processing start time: " + overallStart.toString());
         System.out.println("Transaction processing end time: " + overallEnd.toString());
-        System.out.println("Overall runtime: " + runTime.getMillis() + " ms");
+        System.out.println("Overall run/response time: " + runTime.getMillis() + " ms");
         System.out.println("Number of txns executed: " + numTxns);
         System.out.println("Transactions per second: " + txnsPerSec);
+        System.out.println(" ");
+        System.out.println("Individual transaction performance:");
+        
+        for (int index = 0; index < transactionPerformanceList.size(); ++index) {
+        	Duration txnRunTime = (new Interval(transactionPerformanceList.get(index).txnStart,
+        			transactionPerformanceList.get(index).txnEnd)).toDuration();
+        	
+        	String finalOp;
+        	
+        	if (transactionPerformanceList.get(index).abortedFlag) {
+        		finalOp = "Abort";
+        	}
+        	else {
+        		finalOp = "Commit";
+        	}
+        	
+        	System.out.println(" ");
+        	System.out.println("Txn ID: ............. " + transactionPerformanceList.get(index).tid);
+        	System.out.println("Txn run/reponse time: " + txnRunTime.getMillis());
+        	System.out.println("Txn completed with .. " + finalOp);
+        }
+        
         System.out.println("--------------------------------------------");
 
         // Notify the transaction manager that the scheduler is exiting.
@@ -475,9 +472,16 @@ public class Scheduler extends Thread{
     		while (fullRecLockCheckIter.hasNext()){
     			currRecTree = fullRecLockCheckIter.next();
 
+    			// Do a deep copy of the rec lock type list to prevent corruption.
+    			TreeMap<Integer, LockType> tempRecLockTypeList = new TreeMap<Integer, LockType>();
+    			
+    			for (Map.Entry<Integer, LockType> entry : currRecTree.queuedRecLockTypeList.entrySet()) {
+    				tempRecLockTypeList.put(entry.getKey(), entry.getValue());
+    			}
+    			
     			// For each queued lock type, go back to it's parent and try to schedule the next
     			// oldest queued transaction waiting for it.
-    			for (Map.Entry<Integer, LockType> entry : currRecTree.queuedRecLockTypeList.entrySet()) {
+    			for (Map.Entry<Integer, LockType> entry : tempRecLockTypeList.entrySet()) {
     				currLockType = entry.getValue();
 
     				queuedTxnGrantedLock = currLockType.parentRecordLock.attemptAcquireForNextQueuedTxn();
@@ -526,8 +530,13 @@ public class Scheduler extends Thread{
     					// Remove any queued file locks.
     					currRecLockTree.queuedList.removeByTID(targetTxn.tid);
     					
-    					// Remove any queued record locks.
+    					// Remove any queued record lock types from the tree level.
     					currRecLockTree.queuedRecLockTypeList.remove(targetTxn.tid);
+    					
+    					// Remove any queued record lock types from the record lock class.
+    					for (Map.Entry<Integer, RecordLock> recLockEntry : currRecLockTree.entrySet()) {
+    						recLockEntry.getValue().queuedList.remove(targetTxn.tid);
+    					}
     				}
     			}
     			
