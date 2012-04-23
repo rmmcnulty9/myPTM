@@ -20,6 +20,11 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		df_id= dfid;
 		page_id = p;
 		block_id = b;
+		
+		if(block_id<0 || page_id<0){
+			System.exit(0);
+		}
+		
 		dirtied_by = new ArrayList <Integer>();
 		fixed_by = new ArrayList <Integer>();	
 	}
@@ -30,6 +35,10 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		block_id = Integer.parseInt(bid);
 		dirtied_by = new ArrayList <Integer>();
 		fixed_by = new ArrayList <Integer>();
+		
+		if(block_id<0 || page_id<0){
+			System.exit(0);
+		}
 		
 		for(int i=0;i<records.length;i++){
 			if(!records[i].contains("~~ FREE ~~")) this.add(new Record(records[i]));
@@ -43,9 +52,9 @@ public class Page extends ArrayList<Record> implements java.io.Serializable{
 		return this.size()== RECORDS_PER_PAGE;
 	}
 
-	public Record getRecordFromPage(int id){
+	public Record getRecordFromPage(int rid){
 		for(int i=0;i<this.size();i++){
-			if(this.get(i).ID == id){
+			if(this.get(i).ID == rid){
 				return this.get(i);
 			}
 		}

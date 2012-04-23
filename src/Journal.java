@@ -29,7 +29,7 @@ public class Journal {
 	
 	public boolean addEntry(int tid, int df_id, int pid, String before_image, String after_image){
 		if(before_image==null)before_image = "BEFORE";
-		if(after_image==null)after_image = "AFTER\n";
+		if(after_image==null)after_image = "AFTER";
 		String e = tid+","+df_id+","+pid+","+before_image+","+after_image+"\n";
 		try{
 			raf.seek(raf.length());
