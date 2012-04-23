@@ -68,6 +68,9 @@ public class Transaction extends ArrayList<Operation> {
 	 */
 	public void wound(Transaction attackingTxn) {
 		if (attackingTxn.txnStart.isBefore(txnStart)) {
+			// TODO: (jmg199) REMOVE AFTER TESTING.
+			System.out.println("Attacking TxnID [" + attackingTxn.tid + "] has wounded TxnID [" + tid + "].");
+        			
 			// The file lock requesting txn is older than the current record lock holder, so abort it.
 			// Tell the scheduler to abort this transaction.
 			Scheduler.getSched().abort(this);

@@ -13,7 +13,7 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	private Transaction txnGrantedFileLock = null;
 
 	// More than one transaction can be waiting to delete the file.
-	private TransactionList queuedList = null;
+	public TransactionList queuedList = null;
 
 	//public CopyOnWriteArrayList<RecordLock> grantedRecLockList = null;
 	public TreeMap<Integer, LockType> grantedRecLockTypeList = null;

@@ -194,6 +194,11 @@ public class Scheduler extends Thread{
         	}
         	else {
         		scheduled_ops.add(sourceTxn.get(0));
+        		
+        		if (sourceTxn.get(0).type.equals("A")) {
+        			// If we are scheduling an abort, flag it.
+        			sourceTxn.abortedFlag = true;
+        		}
 
         		// TODO: (jmg199) REMOVE AFTER TESTING.
         		System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
@@ -214,7 +219,7 @@ public class Scheduler extends Thread{
     		currTxn = iter.next();
 
     		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.println("Checking if stalled txn ID[" + currTxn.tid + "] can be restarted.");
+    		//System.out.println("Checking if stalled txn ID[" + currTxn.tid + "] can be restarted.");
         		
     		if (!currTxn.isEmpty()){
     			// TODO: (jmg199) REMOVE AFTER TESTING.
@@ -273,64 +278,74 @@ public class Scheduler extends Thread{
      * This method handles the clean up after the DM completes an operation.
      */
     private void processCompletedOps(){
-        Operation currOp = null;
+    	// This needs to be synchronized because there is a race condition here
+    	// where a completed op is removed, but the parent txn is not yet
+    	// removed from the deadlock list when the poll timer fires.
+    	synchronized(this){
+    		Operation currOp = null;
 
-        while(!completed_ops.isEmpty()){
-            // TODO: (jmg199) REMOVE AFTER TESTING.
-            System.out.println("[Sched] Completed ops size:[" + String.valueOf(completed_ops.size()) + "]");
+    		while(!completed_ops.isEmpty()){
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			System.out.println("[Sched] Completed ops size:[" + String.valueOf(completed_ops.size()) + "]");
 
-        	Transaction parentTxn;
-            // This needs to be synchronized because there is a race condition here
-            // where a completed op is removed, but the parent txn is not yet
-            // removed from the deadlock list when the poll timer fires.
-            synchronized(this){
-            	// TODO: (jmg199) REMOVE AFTER TESTING.
-                Operation currOpTemp = null;
-            	for (int index = 0; index < completed_ops.size(); ++index) {
-            		currOpTemp = completed_ops.get(index);
-            		System.out.println("[Sched] Before remove: Operations to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
-            	}
-            	
-                currOp = completed_ops.remove(0);
-                
-            	// TODO: (jmg199) REMOVE AFTER TESTING.
-            	for (int index = 0; index < completed_ops.size(); ++index) {
-            		currOpTemp = completed_ops.get(index);
-            		System.out.println("[Sched] After remove: Operation to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
-            	}
-            	
-            	// TODO: (jmg199) REMOVE AFTER TESTING.
-            	System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
+    			Transaction parentTxn;
 
-                parentTxn = transactions.getByTID(currOp.tid);
-            }
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			Operation currOpTemp = null;
+    			for (int index = 0; index < completed_ops.size(); ++index) {
+    				currOpTemp = completed_ops.get(index);
+    				System.out.println("[Sched] Before remove: Operations to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
+    			}
 
-            if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){
-            	// TODO: (jmg199) REMOVE AFTER TESTING.
-            	System.out.println("[Sched] Transaction ID [" + parentTxn.tid + "] ended with operation [" + currOp.type + "]");
-            	
-                // This transaction has committed or aborted, so release it's locks and
-            	// remove it from the transaction list.
-            	releaseLocks(parentTxn);
+    			currOp = completed_ops.remove(0);
 
-                if (!transactions.removeByTID(parentTxn.tid)){
-                    System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
-                }
-                else {
-                    System.out.println("[Sched] Removed txn id [" + parentTxn.tid + "].");
-                }
-                // Remove the operation from the transaction's operation list.
-                parentTxn.remove(0);
-            }
-            else {
-                // Remove the operation from the transaction's operation list.
-                parentTxn.remove(0);
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			for (int index = 0; index < completed_ops.size(); ++index) {
+    				currOpTemp = completed_ops.get(index);
+    				System.out.println("[Sched] After remove: Operation to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
+    			}
 
-                // Schedule the next operation in the parentTxn.
-                scheduleNextOp(parentTxn);
-            }
-        }
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
+
+    			parentTxn = transactions.getByTID(currOp.tid);
+
+    			if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){
+    				// TODO: (jmg199) REMOVE AFTER TESTING.
+    				System.out.println("[Sched] Transaction ID [" + parentTxn.tid + "] ended with operation [" + currOp.type + "]");
+
+    				// This transaction has committed or aborted, so release it's locks and
+    				// remove it from the transaction list.
+    				releaseLocks(parentTxn);
+
+    				if (!transactions.removeByTID(parentTxn.tid)){
+    					System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
+    				}
+    				else {
+    					System.out.println("[Sched] Removed txn id [" + parentTxn.tid + "].");
+    				}
+    				// Remove the operation from the transaction's operation list.
+    				parentTxn.remove(0);
+    			}
+    			else {
+    				// Need to check if this is aborted because Sched injects the abort into the scheduled
+    				// ops list. The op being processed now may have been scheduled before the abort occurred
+    				// and if so, just wait for the abort ack.
+    				if (!parentTxn.abortedFlag) {
+    					// Remove the operation from the transaction's operation list.
+    					parentTxn.remove(0);
+
+    					// Schedule the next operation in the parentTxn.
+    					scheduleNextOp(parentTxn);
+    				}
+    				else {
+    					System.out.println("[Sched] TxnID [" + parentTxn.tid + "] is aborted.");
+    				}
+    			}
+    		}
+    	}          
     }
+
 
     
 
@@ -417,7 +432,7 @@ public class Scheduler extends Thread{
     			queuedTxnGrantedLock.opStart = DateTime.now();
 
     			// Send the txn's operation to the DM.
-            	scheduled_ops.add(sourceTxn.get(0));
+            	scheduled_ops.add(queuedTxnGrantedLock.get(0));
     		}
     	}
 
@@ -463,18 +478,53 @@ public class Scheduler extends Thread{
      * This method aborts the specified transaction.
      */
     public void abort(Transaction targetTxn) {
-    	// If an abort has already been made on this txn just let it go.
-    	if (!targetTxn.abortedFlag) {
-    		// Flag the transaction as aborted.
-    		targetTxn.abortedFlag = true;
+    	synchronized(this){
+    		// If an abort has already been made on this txn just let it go.
+    		if (!targetTxn.abortedFlag) {
+    			// Rip out any scheduled operation.
+    			boolean schedOpFound = false;
+    			//for (int index = 0; index < scheduled_ops.size(); ++index) {
+    			//	if (scheduled_ops.get(index).tid == targetTxn.tid) {
+    			//		scheduled_ops.remove(index);
+    			//		schedOpFound = true;
+    			//	}
+    			//}
+    			
+    			// Don't bother looking for queued locks if an op was scheduled.
+    			// A transaction will never be queued for a lock and have a scheduled
+    			// op at the same time.
+    			if (!schedOpFound) {
+    				for (Map.Entry<String, RecordLockTree> entry : lockTree.fileTree.entrySet()) {
+    					RecordLockTree currRecLockTree = entry.getValue();
+    					
+    					// Remove any queued file locks.
+    					currRecLockTree.queuedList.removeByTID(targetTxn.tid);
+    					
+    					// Remove any queued record locks.
+    					currRecLockTree.queuedRecLockTypeList.remove(targetTxn.tid);
+    				}
+    			}
+    			
+    			// Flag the transaction as aborted.
+    			targetTxn.abortedFlag = true;
 
-    		// Clear the op list for this transaction.
-    		targetTxn.clear();
+    			// Clear the op list for this transaction.
+    			targetTxn.clear();
 
-    		// Create an abort operation and insert it into the aborted txn.
-    		Operation abortOp = new Operation(targetTxn.tid, "A");
+    			// Create an abort operation and insert it into the aborted txn.
+    			Operation abortOp = new Operation(targetTxn.tid, "A");
 
-    		targetTxn.add(abortOp);
+    			targetTxn.add(abortOp);
+    			
+    			scheduleNextOp(targetTxn);
+    			
+    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			System.out.println("[Sched] About to rattle off scheduled ops.");
+    			for (int index = (scheduled_ops.size() - 1); index >= 0; --index) {
+    				System.out.println("[Sched] operation[" + index + "] TYPE: [" + scheduled_ops.get(index).type + 
+    						"] TID: [" + scheduled_ops.get(index).tid + "]");
+    			}
+    		}
     	}
     }
 

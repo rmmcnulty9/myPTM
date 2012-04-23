@@ -6,7 +6,7 @@ import java.util.TreeMap;
  */
 public class LockTree {
 	// This tree organizes the locks by filename.
-	private TreeMap<String,RecordLockTree> fileTree = null;
+	public TreeMap<String,RecordLockTree> fileTree = null;
 	//private TreeMap<String,TreeMap<Integer, Lock>> fileTree = null;
 
 	
