@@ -72,6 +72,7 @@ public class DataManager extends Thread {
 				DataFile df = getDataFileByName(op.filename);
 				if(op.type.equals("A")){
 					System.out.println("[DM] Aborting TID: "+op.tid+"...");
+					flushTransactionsPages(op.tid);
 					undoAbortedTransaction(op.tid);
 					flushTransactionsPages(op.tid);
 					completed_ops.add(op);
