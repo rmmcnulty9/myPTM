@@ -687,11 +687,11 @@ public class DataManager extends Thread {
 
 
 	/**
+	 * Very simple replacement algorithm
 	 * @param df - data file to flush the page from
 	 * @param in_use_now - the page in use that should not be flushed
 	 */
 	private void removePageInBuffer(DataFile df, Page in_use_now) {
-		// TODO REPLACEMENT ALGORITHM - something smarter??
 		int fewest_fix=0;
 		for(int i=0;i<buffer.size();i++){
 			Page cur = buffer.get(i);

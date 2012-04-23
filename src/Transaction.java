@@ -19,6 +19,7 @@ public class Transaction extends ArrayList<Operation> {
 	 * TODO I believe we might only need to hold on to the BufferedReader,
 	 *  but since we have the structure already I have left it
 	 */
+	String filename;
 	FileInputStream fis;
 	DataInputStream dis;
 	BufferedReader br;
@@ -40,7 +41,8 @@ public class Transaction extends ArrayList<Operation> {
     public ArrayList<RecordLockTree> grantedFileLocks = null;
 
 
-	public Transaction(FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid, int _mode){
+	public Transaction(String _filename, FileInputStream _fis, DataInputStream _dis, BufferedReader _br, int _tid, int _mode){
+		filename = _filename;
 		fis = _fis;
 		dis = _dis;
 		br = _br;

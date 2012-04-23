@@ -174,7 +174,7 @@ public class Scheduler extends Thread{
         	}
         	
         	System.out.println(" ");
-        	System.out.println("Txn ID: ............. " + transactionPerformanceList.get(index).tid);
+        	System.out.println("Txn ID: ............. " + transactionPerformanceList.get(index).tid +" ("+transactionPerformanceList.get(index).filename+")");
         	System.out.println("Txn run/reponse time: " + txnRunTime.getMillis());
         	System.out.println("Txn completed with .. " + finalOp);
         }
