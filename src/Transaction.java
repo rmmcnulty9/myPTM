@@ -32,6 +32,7 @@ public class Transaction extends ArrayList<Operation> {
 
     // Transaction start is used for execution time reporting and deadlock threshold determination.
     public DateTime txnStart = null;
+    public DateTime txnEnd = null;
     
     // List of locks that the txn has been granted.
     //public ArrayList<RecordLock> grantedLocks = null;

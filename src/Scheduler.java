@@ -3,6 +3,8 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
+import org.joda.time.Interval;
 
 
 public class Scheduler extends Thread{
@@ -31,9 +33,9 @@ public class Scheduler extends Thread{
     private LockTree lockTree = null;
 
     // Our DM reference.
-	private DataManager dm_task = null;
+	//private DataManager dm_task = null;
 	// TODO: (jmg199) FOR DEBUGGING ONLY.
-	//private DataManagerSim dm_task = null;
+	private DataManagerSim dm_task = null;
 
     // Our TM reference.
     private TranscationManager tm_task = null;
@@ -43,8 +45,20 @@ public class Scheduler extends Thread{
 
     // Flag indicating when the DM has completed its work.
     private boolean dataMgrExitFlag = false;
+    
+    // Time when transaction processing started.
+    private DateTime overallStart = null;
+    
+    // Time when last transaction finished processing.
+    private DateTime overallEnd = null;
+    
+    // Number of txns being processed.
+    private int numTxns = 0;
 
+    // This is a list of transactions to execute.
+	private TransactionList transactionPerformanceList = null;
 
+	
     /*
      * @summary
      * This is the class ctor.
@@ -65,6 +79,8 @@ public class Scheduler extends Thread{
         txnMgrDoneFlag = false;
         dataMgrExitFlag = false;
         tm_task = tm;
+        numTxns = _sourceTransactions.size();
+        transactionPerformanceList = new TransactionList();
         
         schedTask = this;
 	}
@@ -89,8 +105,8 @@ public class Scheduler extends Thread{
         // Create the DM if needed.
 		if(dm_task == null){
 			// TODO: (jmg199) UNCOMMENT AFTER DEBUGGING.
-			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
-			//dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
+			//dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
+			dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
 			System.out.println("[Sched] Started DataManager...");
 			dm_task.start();
 		}
@@ -143,12 +159,30 @@ public class Scheduler extends Thread{
         {
             // Check periodically to see if DM is done.
             try {
-				sleep(100);
+				sleep(50);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
         }
+		
+		// Mark the end of txn processing.
+        overallEnd = DateTime.now();
+        
+        // Print the performance data.
+        Duration runTime = (new Interval(overallStart, overallEnd)).toDuration();
+        
+        // Calc txns per sec.
+        double txnsPerSec = (((double)numTxns / runTime.getMillis() ) * 1000);
+        
+        System.out.println(" ");
+        System.out.println("------------- Performance Data -------------");
+        System.out.println("Transaction processing start time: " + overallStart.toString());
+        System.out.println("Transaction processing end time: " + overallEnd.toString());
+        System.out.println("Overall runtime: " + runTime.getMillis() + " ms");
+        System.out.println("Number of txns executed: " + numTxns);
+        System.out.println("Transactions per second: " + txnsPerSec);
+        System.out.println("--------------------------------------------");
 
         // Notify the transaction manager that the scheduler is exiting.
         tm_task.setSchedExitFlag();
@@ -180,6 +214,11 @@ public class Scheduler extends Thread{
         	if (sourceTxn.txnStart == null){
         		// If this is the first op then set the txn start time.
         		sourceTxn.txnStart = sourceTxn.opStart;
+        	}
+        	
+        	if (overallStart == null) {
+        		// Set the start of transaction processing.
+        		overallStart = sourceTxn.txnStart;
         	}
 
         	// Commits and aborts do no need locks.
@@ -231,25 +270,6 @@ public class Scheduler extends Thread{
     			stalledTxns.removeByTID(currTxn.tid);
     		}
     	}
-
-        // TODO: (jmg199) THIS WAS THE OLD IMPLEMENTATION.  REMOVE AFTER TESTING THE ITERATOR IMPEMENTATION.
-        //// List to store the transactions that need to be removed.
-        //TransactionList restartedTxns = new TransactionList();
-
-        //// Traverse the stalled transactions list and see if ops now exist to be scheduled.
-        //for (int index = 0; index < stalledTxns.size(); ++index){
-        //    if (!stalledTxns.get(index).isEmpty()){
-        //        // Now that there is an op, schedule it and mark it for removal from the stalled queue.
-        //        scheduleNextOp(stalledTxns.get(index));
-        //        restartedTxns.add(stalledTxns.get(index));
-        //    }
-        //}
-
-        //// Now that the entire stalled transactions list has been traversed
-        //// remove the transactions that were restarted.
-        //for (int index = 0; index < restartedTxns.size(); ++index){
-        //    stalledTxns.remove(restartedTxns.get(index));
-        //}
     }
 
 
@@ -317,6 +337,12 @@ public class Scheduler extends Thread{
     				// This transaction has committed or aborted, so release it's locks and
     				// remove it from the transaction list.
     				releaseLocks(parentTxn);
+    				
+    				// Processing is done. Stamp the end time.
+    				parentTxn.txnEnd = DateTime.now();
+    				
+    				// Hold on to this for performance reporting.
+    				transactionPerformanceList.add(parentTxn);
 
     				if (!transactions.removeByTID(parentTxn.tid)){
     					System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
