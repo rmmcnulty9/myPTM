@@ -1,0 +1,18 @@
+Final Project Explanation for CS2550
+
+Running:
+The commands to run the myPTM system are as follows:
+
+myPTM --scheduler <rr|seed> --buffer <page #> --processes <files>
+
+For example to run the transactions in A.txt and B.txt using random scheduling with a seed of 2550 and a buffer size of 10 the command would be:
+
+myPTM --scheduler 2550 --buffer 10 --processes A.txt B.txt
+
+Note that the "rr" option is for round robin scheduling.
+
+Concurreny Control:
+
+In line with our report we implemented a Deadlock detection timer as well as a Wound-Wait scheme of resolving the deadlocks that are found. However, something we missed in our design was the different lock compatibilities for transactions verse processes. This not a difficult adjustment to make. Another change from our initial design was we abandoned the idea of a lock tree. In our meeting with the TA we realized we would only need to either lock data files, for deleting them, or records, for inserting or updating. Thus, our locking scheme is based around file and record locks. This chance simplified our implementation. 
+
+We also left the checkpointing behind as it was not needed for this system. The simplified log buffer only tracks writes and deletes. The log entries contain field for data file id, transaction id, page id, before image and after image. So on every write and delete a new entry was added to the log buffer. Then on commits the log buffer would be scanned and those entries tied to that transaction but
