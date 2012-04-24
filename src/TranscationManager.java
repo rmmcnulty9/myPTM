@@ -108,7 +108,6 @@ public class TranscationManager extends Thread{
 				// Get the object of DataInputStream
 				DataInputStream in = new DataInputStream(fis);
 				BufferedReader br = new BufferedReader(new InputStreamReader(in));
-				String strLine;
 				//Read The initial flag B
 				String flag = br.readLine();
 				int mode = Integer.parseInt(flag.substring(2));

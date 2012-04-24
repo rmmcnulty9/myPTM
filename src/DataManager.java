@@ -222,7 +222,10 @@ public class DataManager extends Thread {
 		scheduler.setDMExitFlag();
 
 		System.out.println("[DM] Data Manager is exiting...");
-
+		System.out.println("------------READ/WRITE PERCENTAGES-----------");
+		System.out.println("READ % "+ ((double)read_count/((double)read_count+(double)write_count)));
+		System.out.println("WRITE % "+ ((double)write_count/((double)read_count+(double)write_count)));
+		System.out.println("-----------------------------------------------");
 	}
 
 	private int addRecordToFileHash(DataFile df, Record record, int tid, int next_pid, boolean log_op) {
@@ -733,6 +736,14 @@ public class DataManager extends Thread {
 
 
 		// If new_r.ID< p_mid[0] - look backward
+		if(p_mid.size()==0){
+			if(0==recursed_dir){
+				return 0;
+			}else{
+				return -recursed_dir;
+			}
+		}
+		
 		if(new_r.ID <p_mid.get(0).ID){
 			if(0==recursed_dir){
 				int look_back = findRecordLocationInPage(df, tid, bid_mid-1, new_r, 1);

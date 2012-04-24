@@ -17,6 +17,6 @@ We implemented the Wound-Wait deadlock avoidance scheme. However, something we m
 
 We also left the checkpointing behind as it was not needed for this system. The simplified log buffer only tracks writes and deletes. The log entries contain field for data file id, transaction id, page id, before image and after image. So on every write and delete a new entry was added to the log buffer. Then on commits the log buffer would be scanned and those entries tied to that transaction are removed and the backed up data files are destroyed. On abort a list of entries will be compiled, in order. Then the Data Manager will restore and remove records and data files back to a state before the aborted transaction started.
 
-Other Interesting Features:
-**Any thoughts here Jeff??**
+Analysis:
+After doing testing on a variety of different combinations of transactions and processes with different settings. We saw that when transactions were long enough the hashing and scanning made a difference. For instance, when there are multiple transactions running at once on the hashing search method the average response time is shorter than that of the scan method. However, something that we did not expect was when running a single transaction with 3000+ operations the
 
