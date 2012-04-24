@@ -1,4 +1,4 @@
-B 0
+B 1
 W sampleDataFile.txt (90,Hellsing,000-474-2038)
 R sampleDataFile.txt 615
 R sampleDataFile.txt 1304
