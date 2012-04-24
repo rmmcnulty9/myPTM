@@ -175,6 +175,8 @@ public class Scheduler extends Thread{
         System.out.println(" ");
         System.out.println("Individual transaction performance:");
         
+        int committedCount = 0;
+        
         for (int index = 0; index < transactionPerformanceList.size(); ++index) {
         	Duration txnRunTime = (new Interval(transactionPerformanceList.get(index).txnStart,
         			transactionPerformanceList.get(index).txnEnd)).toDuration();
@@ -186,6 +188,7 @@ public class Scheduler extends Thread{
         	}
         	else {
         		finalOp = "Commit";
+        		++committedCount;
         	}
         	
         	System.out.println(" ");
@@ -193,6 +196,9 @@ public class Scheduler extends Thread{
         	System.out.println("Txn run/reponse time: " + txnRunTime.getMillis());
         	System.out.println("Txn completed with .. " + finalOp);
         }
+        
+        System.out.println(" ");
+        System.out.println("Total Txns committed .... " + committedCount);
         
         System.out.println("--------------------------------------------");
 
