@@ -15,10 +15,6 @@ public class Transaction extends ArrayList<Operation> {
 	private static final long serialVersionUID = -8187588735709506147L;
 
 
-	/*
-	 * TODO I believe we might only need to hold on to the BufferedReader,
-	 *  but since we have the structure already I have left it
-	 */
 	String filename;
 	FileInputStream fis;
 	DataInputStream dis;
