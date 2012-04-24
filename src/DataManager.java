@@ -403,6 +403,7 @@ public class DataManager extends Thread {
 			Page p = buffer.get(touched);
 			if(p.df_id==df.df_id){
 				buffer.remove(p);
+				flushPage(df,p);
 				touched--;
 				orig_size--;
 			}
@@ -539,6 +540,8 @@ public class DataManager extends Thread {
 				buffer.remove(p);
 				touched--;
 				orig_size--;
+//				DataFile df = getDataFileByDFID(p.df_id);
+//				flushPage(df, p);
 			}
 			touched++;
 		}
@@ -775,7 +778,6 @@ public class DataManager extends Thread {
 	 */
 	private int splitPage(DataFile df, Page old_p, Record r, int next_pid, int tid, int i, boolean log_op) {
 		System.out.println("[DM] Splitting for TID "+tid);
-		//TODO verbose flag
 		if(verbose){
 			System.out.println("\n"+old_p+"\n due to :"+r);
 		}
