@@ -9,6 +9,10 @@ import org.joda.time.Interval;
 
 
 public class Scheduler extends Thread{
+	// Debugging flag.
+	private boolean verbose = false;
+	
+	// Reference to the scheduler task.
 	private static Scheduler schedTask = null;
 	
     // Buffer size that the DM should use.
@@ -59,7 +63,7 @@ public class Scheduler extends Thread{
     // This is a list of transactions to execute.
 	private TransactionList transactionPerformanceList = null;
 
-	private boolean verbose;
+
     /*
      * @summary
      * This is the class ctor.
@@ -70,7 +74,6 @@ public class Scheduler extends Thread{
      */
 	public Scheduler(TranscationManager tm, TransactionList _sourceTransactions, int _buffer_size, String _search_method, boolean _verbose){
         // Init data members.
-		verbose = _verbose;
 		buffer_size = _buffer_size;
 		search_method = _search_method;
 		transactions = _sourceTransactions;
@@ -83,6 +86,7 @@ public class Scheduler extends Thread{
         tm_task = tm;
         numTxns = _sourceTransactions.size();
         transactionPerformanceList = new TransactionList();
+        verbose = _verbose;
         
         schedTask = this;
 	}
@@ -109,26 +113,37 @@ public class Scheduler extends Thread{
 			// TODO: (jmg199) UNCOMMENT AFTER DEBUGGING.
 			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this, verbose);
 			//dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
-			System.out.println("[Sched] Started DataManager...");
+			
+			if (verbose) {
+				System.out.println("[Sched] Started DataManager...");
+			}
+			
+			// Start the data manager thread.
 			dm_task.start();
 		}
 
         // Check each transaction in the transaction list and try to schedule
         // the first operation for each.
         for (int index = 0; index < transactions.size(); ++index){
-			System.out.println("[Sched] Trying to schedule first op for txn [" + transactions.get(index).tid +
-					"] Total Ops:[" + String.valueOf(transactions.get(index).size()) + "]");
+        	if (verbose) {
+        		System.out.println("[Sched] Trying to schedule first op for txn [" + transactions.get(index).tid +
+        				"] Total Ops:[" + String.valueOf(transactions.get(index).size()) + "]");
+        	}
+        	
             scheduleNextOp(transactions.get(index));
         }
 
 
         // Continue working until the TM is done, and there are no more operations to execute.
 		while(!txnMgrDoneFlag || !transactions.isEmpty()){
+			// See if there are any stalled transactions that now have ops to schedule.
             scheduleStalledTxns();
 
+            // See if there are ops returned from the DM.
             processCompletedOps();
 		}
 
+		// Tell the DM that the scheduler has finished it's work.
         dm_task.setSchedDoneFlag();
 
         while (!dataMgrExitFlag)
@@ -185,12 +200,15 @@ public class Scheduler extends Thread{
         // Notify the transaction manager that the scheduler is exiting.
         tm_task.setSchedExitFlag();
 
-        System.out.println("Scheduler is exiting...");
+        if (verbose) {
+        	System.out.println("Scheduler is exiting...");
+        }
 	}
 
 
 
-    /* @summary
+    /* 
+     * @summary
      * This method schedules the next operation for the specified transaction.
      * If there is no operation in its queue to be scheduled then it is put in
      * the stalled transaction queue.
@@ -199,8 +217,9 @@ public class Scheduler extends Thread{
         // Add the first operation in the transaction if it exists.
         // Otherwise, add it to the blocked queue.
         if (sourceTxn.isEmpty()){
-            // TODO: (jmg199) REMOVE AFTER TESTING.
-            System.out.println("Transaction [" + String.valueOf(sourceTxn.tid) + "] has stalled.");
+        	if (verbose) {
+        		System.out.println("Transaction [" + String.valueOf(sourceTxn.tid) + "] has stalled.");
+        	}
 
             // Add this transaction to the blocked queue.
             stalledTxns.add(sourceTxn);
@@ -245,7 +264,8 @@ public class Scheduler extends Thread{
 
 
 
-    /* @summary
+    /* 
+     * @summary
      * This method attempts to schedule operations for transactions that have stalled.
      */
     private void scheduleStalledTxns(){
@@ -254,9 +274,6 @@ public class Scheduler extends Thread{
 
     	while (iter.hasNext()){
     		currTxn = iter.next();
-
-    		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		//System.out.println("Checking if stalled txn ID[" + currTxn.tid + "] can be restarted.");
         		
     		if (!currTxn.isEmpty()){
     			// TODO: (jmg199) REMOVE AFTER TESTING.
