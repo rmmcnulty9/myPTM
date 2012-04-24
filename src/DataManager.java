@@ -1,16 +1,6 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 
 
@@ -36,11 +26,12 @@ public class DataManager extends Thread {
 	private boolean schedDoneFlag = false;
 
 	private Scheduler scheduler;
-
+	private boolean verbose;
 
 	public ArrayList<DataFile> data_files;
 
-	public DataManager(ArrayList<Operation> _scheduled_op, ArrayList<Operation> _completed_ops, int _buffer_size, String _search_method, Scheduler s) {
+	public DataManager(ArrayList<Operation> _scheduled_op, ArrayList<Operation> _completed_ops, int _buffer_size, String _search_method, Scheduler s, boolean _verbose) {
+		verbose = _verbose;
 		scheduled_ops = _scheduled_op;
 		completed_ops = _completed_ops;
 		buffer_size = _buffer_size;
@@ -69,6 +60,7 @@ public class DataManager extends Thread {
 					System.out.println("[DM] Operations is null??");
 					System.exit(0);
 				}
+				
 				DataFile df = getDataFileByName(op.filename);
 				if(op.type.equals("A")){
 					System.out.println("[DM] Aborting TID: "+op.tid+"...");
@@ -113,19 +105,19 @@ public class DataManager extends Thread {
 
 					if(op.type.equals("R")){
 						read_count++;
-						System.out.println("[DM] Scan Method: Reading "+read_count+"...");
+						System.out.println("[DM] Scan Method: Reading for TID "+op.tid);
 
 						//First check the buffer for desired page
 						Record r = getRecordFromBufferedPage(Integer.parseInt(op.val));
 						if(r != null){
-							System.out.println("[DM]"+r);
+							System.out.println("[DM] Retreived: "+r);
 							completed_ops.add(op);
 							continue;
 						}
 						//Then check file
 						r = getRecordFromDataFile(df, op.tid, Integer.parseInt(op.val));
 						if(r != null){
-							System.out.println("[DM]"+r);
+							System.out.println("[DM] Retreived: "+r);
 							completed_ops.add(op);
 							continue;
 						}else{
@@ -137,7 +129,7 @@ public class DataManager extends Thread {
 
 					}else if(op.type.equals("W")){
 						write_count++;
-						System.out.println("[DM] Scan Method: Writing "+write_count+"...");
+						System.out.println("[DM] Scan Method: Writing for TID "+op.tid);
 
 						next_global_page_id = addRecordToFileScan(df, op.record, op.tid, next_global_page_id, true);
 						completed_ops.add(op);
@@ -146,12 +138,12 @@ public class DataManager extends Thread {
 
 					}else if(op.type.equals("D")){
 						delete_count++;
-						System.out.println("[DM] Scan Method: Delete "+delete_count+"...");
+						System.out.println("[DM] Scan Method: Delete for TID "+op.tid);
 						flushBufferedPageByDataFile(df);
 						df.isDeleted = true;
 						File df_newf = new File(df.filename+"_"+df.df_id);
 						if(!df.f.renameTo(df_newf)){
-							System.out.println("Failed to rename backup datafile.");
+							System.out.println("[DM] Failed to rename backup datafile.");
 							System.exit(0);
 						}
 						df.f = df_newf;
@@ -168,7 +160,7 @@ public class DataManager extends Thread {
 
 					if(op.type.equals("R")){
 						read_count++;
-						System.out.println("[DM] Hash Method: Reading "+read_count+"...");
+						System.out.println("[DM] Hash Method: Reading for TID "+op.tid);
 						int bid = Integer.parseInt(op.val) % df.BlockCount();
 						Page p = getBufferedPageByPageID(bid);
 						if(p==null){
@@ -186,14 +178,14 @@ public class DataManager extends Thread {
 								completed_ops.add(op);
 								continue;
 							}else{
-								System.out.println("[DM]"+r);
+								System.out.println("[DM] Retreived "+r);
 								completed_ops.add(op);
 								continue;
 							}
 						}
 					}else if(op.type.equals("W")){
 						write_count++;
-						System.out.println("[DM] Hash Method: Writing "+write_count+"...");
+						System.out.println("[DM] Hash Method: Writing for TID "+op.tid);
 						
 						next_global_page_id = addRecordToFileHash(df, op.record,op.tid,next_global_page_id, true);
 						completed_ops.add(op);
@@ -201,12 +193,12 @@ public class DataManager extends Thread {
 						
 					}else if(op.type.equals("D")){
 						delete_count++;
-						System.out.println("[DM] Hash Method: Delete "+delete_count+"...");
+						System.out.println("[DM] Hash Method: Delete for TID "+op.tid);
 						flushBufferedPageByDataFile(df);
 						df.isDeleted = true;
 						File df_newf = new File(df.filename+"_"+df.df_id);
 						if(!df.f.renameTo(df_newf)){
-							System.out.println("Failed to rename backup datafile.");
+							System.out.println("[DM] Failed to rename backup datafile.");
 							System.exit(0);
 						}
 						df.f = df_newf;
@@ -238,10 +230,10 @@ public class DataManager extends Thread {
 		//If dataFile is empty add page
 		if(df.isEmpty()){
 			if(buffer.size() == buffer_size){
-				System.out.println("Buffer should be empty here.");
+				System.out.println("[DM] Buffer should be empty here.");
 				System.exit(0);
-				//								removePageInBuffer(df, null);
 			}
+			
 			//Create new page
 			Page p = new Page(df.df_id,next_pid, 0);
 			next_pid++;
@@ -249,7 +241,7 @@ public class DataManager extends Thread {
 			p.dirtied_by.add(tid);
 
 			if(!p.add(record)){
-				System.out.println("Must be able to add to this page.");
+				System.out.println("[DM] Must be able to add to this page.");
 				System.exit(-1);
 			}else{
 				if(log_op)journal.addEntry(tid, df.df_id, p.page_id, null, record.toString());
@@ -274,7 +266,7 @@ public class DataManager extends Thread {
 				if(cur_r.ID>=record.ID){
 					if(cur_r.ID==record.ID){
 						if(!p.setAtIndex(i, record)){
-							System.out.println("Have to be able to update this record!");
+							System.out.println("[DM] Have to be able to update this record!");
 							System.exit(0);
 						}else{
 							if(log_op)journal.addEntry(tid, df.df_id, p.page_id, cur_r.toString(), record.toString());
@@ -288,7 +280,7 @@ public class DataManager extends Thread {
 							return next_pid;
 						}
 					}else{
-						System.out.println("This record can not be less here.");
+						System.out.println("[DM] This record can not be less here.");
 						System.exit(0);
 					}
 				}else if(i==Page.RECORDS_PER_PAGE-1){
@@ -296,7 +288,7 @@ public class DataManager extends Thread {
 					
 				}else if(i==p.size()-1){
 					if(!p.add(record)){
-						System.out.println("This should not trip!");
+						System.out.println("[DM] This should not trip!");
 						System.exit(0);
 					}else{
 						if(log_op)journal.addEntry(tid, df.df_id, p.page_id, null, record.toString());
@@ -334,9 +326,6 @@ public class DataManager extends Thread {
 				df.isDeleted = false;
 				
 				File new_df_newf = new File(df.filename);
-//				if(new_df_newf.exists()){
-//					new_df_newf.delete();
-//				}
 				if(!df.f.renameTo(new_df_newf)){
 					System.out.println("Failed to rename old datafile in restore.");
 					System.exit(0);
@@ -397,7 +386,7 @@ public class DataManager extends Thread {
 		int bid = df.getBIDByPID(pid);
 		Page p = loadPage(df, tid, bid);
 		if(p == null){
-			System.out.println("This Page ID does not exist in this file.");
+			System.out.println("[DM] This Page ID does not exist in this file.");
 			System.exit(0);
 		}else{
 			return p;
@@ -456,7 +445,7 @@ public class DataManager extends Thread {
 					new_page.dirtied_by.add(tid);
 				}
 				if(!new_page.add(p.get(k))){
-					System.out.println("Must be able to add to this page.");
+					System.out.println("[DM] Must be able to add to this page.");
 					System.exit(-1);
 				}else{
 					if(log_op)journal.addEntry(tid, new_df.df_id, new_page.page_id, null, p.get(k).toString());
@@ -477,12 +466,12 @@ public class DataManager extends Thread {
 		//Rename the DataFile for backup purposes
 		File df_newf = new File(df.filename+"_"+df.df_id);
 		if(!df.f.renameTo(df_newf)){
-			System.out.println("Failed to rename old datafile.");
+			System.out.println("[DM] Failed to rename old datafile.");
 			System.exit(0);
 		}
 		File new_df_newf = df.f;
 		if(!new_df.f.renameTo(new_df_newf)){
-			System.out.println("Failed to rename new datafile.");
+			System.out.println("[DM] Failed to rename new datafile.");
 			System.exit(0);
 		}
 		new_df.filename = df.filename;
@@ -610,7 +599,7 @@ public class DataManager extends Thread {
 			p.dirtied_by.add(tid);
 
 			if(!p.add(new_r)){
-				System.out.println("Must be able to add to this page.");
+				System.out.println("[DM] Must be able to add to this page.");
 				System.exit(-1);
 			}else{
 				if(log_op)journal.addEntry(tid, df.df_id, p.page_id, null, new_r.toString());
@@ -646,7 +635,7 @@ public class DataManager extends Thread {
 					if(cur_r.ID>=new_r.ID){
 						if(cur_r.ID == new_r.ID){
 							if(!loc_page.setAtIndex(i, new_r)){
-								System.out.println("Updating existing record can't fail.");
+								System.out.println("[DM] Updating existing record can't fail.");
 								System.exit(0);
 							}else{
 								if(log_op)journal.addEntry(tid, df.df_id, loc_page.page_id, cur_r.toString(), new_r.toString());
@@ -666,7 +655,7 @@ public class DataManager extends Thread {
 				}
 				//Add to end
 				if(!loc_page.add(new_r)){
-					System.out.println("Adding record can't fail here.");
+					System.out.println("[DM] Adding record can't fail here.");
 					System.exit(0);
 				}else{
 					if(log_op)journal.addEntry(tid, df.df_id, loc_page.page_id, null, new_r.toString());
@@ -678,7 +667,7 @@ public class DataManager extends Thread {
 				System.exit(0);
 			}
 		}
-		System.out.println("Should not get here!");
+		System.out.println("[DM] Should not get here!");
 		System.exit(0);
 
 		return next_pid;
@@ -735,7 +724,7 @@ public class DataManager extends Thread {
 		if(0!=recursed_dir && p_mid==null){
 			return recursed_dir;
 		}else if(p_mid==null){
-			System.out.println("Error there must be a page here");
+			System.out.println("[DM] Error there must be a page here");
 			System.exit(0);
 		}
 
@@ -785,7 +774,11 @@ public class DataManager extends Thread {
 	 * @return the new next_pid value
 	 */
 	private int splitPage(DataFile df, Page old_p, Record r, int next_pid, int tid, int i, boolean log_op) {
-		System.out.println("SPLITTING:\n"+old_p+"\n due to :"+r);
+		System.out.println("[DM] Splitting for TID "+tid);
+		//TODO verbose flag
+		if(verbose){
+			System.out.println("\n"+old_p+"\n due to :"+r);
+		}
 
 		//Add page t buffer and DataFile
 		if(buffer.size() == buffer_size){

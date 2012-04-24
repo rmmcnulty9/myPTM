@@ -3,9 +3,8 @@ import java.util.ArrayList;
 
 public class myPTM {
 
-	/**
-	 * @param args
-	 */
+	static final boolean verbose = false;
+	
 	public static void main(String[] args) {
 		/*
 		 * myPTM --scheduler <rr|seed#> --buffer <integer> --search <scan|hash> --processes <1...N file names> 
@@ -62,7 +61,7 @@ public class myPTM {
 			System.exit(0);
 		}
 		
-		TranscationManager tm = new TranscationManager(scheduler, buffer, search_method, files);
+		TranscationManager tm = new TranscationManager(scheduler, buffer, search_method, files, verbose);
 		System.out.println("Started TransactionManager...");
 		tm.start();
 

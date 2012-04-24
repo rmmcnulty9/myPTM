@@ -59,7 +59,7 @@ public class Scheduler extends Thread{
     // This is a list of transactions to execute.
 	private TransactionList transactionPerformanceList = null;
 
-	
+	private boolean verbose;
     /*
      * @summary
      * This is the class ctor.
@@ -68,8 +68,9 @@ public class Scheduler extends Thread{
      * @param   _buffer_size - Initial size of the buffer to provide to the data manager.
      * @param   _search_method - Search method that the DM should use to find the record.
      */
-	public Scheduler(TranscationManager tm, TransactionList _sourceTransactions, int _buffer_size, String _search_method){
+	public Scheduler(TranscationManager tm, TransactionList _sourceTransactions, int _buffer_size, String _search_method, boolean _verbose){
         // Init data members.
+		verbose = _verbose;
 		buffer_size = _buffer_size;
 		search_method = _search_method;
 		transactions = _sourceTransactions;
@@ -106,7 +107,7 @@ public class Scheduler extends Thread{
         // Create the DM if needed.
 		if(dm_task == null){
 			// TODO: (jmg199) UNCOMMENT AFTER DEBUGGING.
-			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this);
+			dm_task = new DataManager(scheduled_ops, completed_ops, buffer_size, search_method, this, verbose);
 			//dm_task = new DataManagerSim(scheduled_ops, completed_ops, this);
 			System.out.println("[Sched] Started DataManager...");
 			dm_task.start();
