@@ -20,10 +20,11 @@ public class TranscationManager extends Thread{
     private boolean schedExitFlag = false;
 
 	private Scheduler scheduler = null;
+	private boolean verbose;
 
 	public void run(){
 		if(scheduler==null){
-			scheduler = new Scheduler(this, transactions, buffer_size, search_method);
+			scheduler = new Scheduler(this, transactions, buffer_size, search_method, verbose);
 			System.out.println("Started Scheduler...");
 			scheduler.start();
 		}
@@ -94,8 +95,9 @@ public class TranscationManager extends Thread{
 	}
 
 	public TranscationManager(String read_method, int _buffer_size,
-			String _search_method, ArrayList<String> file_list){
+			String _search_method, ArrayList<String> file_list, boolean _verbose){
 
+		verbose = _verbose;
 		search_method = _search_method;
 		buffer_size = _buffer_size;
 
