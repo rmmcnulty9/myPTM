@@ -244,8 +244,9 @@ public class Scheduler extends Thread{
         		if (lockTree.acquireLock(sourceTxn)) {
         			scheduled_ops.add(sourceTxn.get(0));
         			
-        			// TODO: (jmg199) REMOVE AFTER TESTING.
-        			System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
+        			if (debugFlag) {
+        				System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
+        			}
         		}
         	}
         	else {
@@ -256,8 +257,9 @@ public class Scheduler extends Thread{
         			sourceTxn.abortedFlag = true;
         		}
 
-        		// TODO: (jmg199) REMOVE AFTER TESTING.
-        		System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
+        		if (debugFlag) {
+        			System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
+        		}
         	}
         }
     }
@@ -276,8 +278,9 @@ public class Scheduler extends Thread{
     		currTxn = iter.next();
         		
     		if (!currTxn.isEmpty()){
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
-    			System.out.println("Txn ID[" + currTxn.tid + "] now has [" + currTxn.size() + "] ops.");
+    			if (debugFlag) {
+    				System.out.println("Txn ID[" + currTxn.tid + "] now has [" + currTxn.size() + "] ops.");
+    			}
     			
     			// Now that there is an op, schedule it and remove the txn
     			// from the stalled list.
@@ -320,28 +323,35 @@ public class Scheduler extends Thread{
     		Operation currOp = null;
 
     		while(!completed_ops.isEmpty()){
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
-    			System.out.println("[Sched] Completed ops size:[" + String.valueOf(completed_ops.size()) + "]");
+    			if (debugFlag) {
+    				System.out.println("[Sched] Completed ops size:[" + String.valueOf(completed_ops.size()) + "]");
+    			}
 
     			Transaction parentTxn;
 
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			// Used for debug printing.
     			Operation currOpTemp = null;
-    			for (int index = 0; index < completed_ops.size(); ++index) {
-    				currOpTemp = completed_ops.get(index);
-    				System.out.println("[Sched] Before remove: Operations to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
+    			
+    			if (debugFlag) {
+    				for (int index = 0; index < completed_ops.size(); ++index) {
+    					currOpTemp = completed_ops.get(index);
+    					System.out.println("[Sched] Before remove: Operations to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
+    				}
     			}
 
+    			// Pull the next completed operation off the list.
     			currOp = completed_ops.remove(0);
 
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
-    			for (int index = 0; index < completed_ops.size(); ++index) {
-    				currOpTemp = completed_ops.get(index);
-    				System.out.println("[Sched] After remove: Operation to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
+    			if (debugFlag) {
+    				for (int index = 0; index < completed_ops.size(); ++index) {
+    					currOpTemp = completed_ops.get(index);
+    					System.out.println("[Sched] After remove: Operation to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
+    				}
     			}
 
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
-    			System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
+    			if (debugFlag) {
+    				System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
+    			}
 
     			parentTxn = transactions.getByTID(currOp.tid);
 
