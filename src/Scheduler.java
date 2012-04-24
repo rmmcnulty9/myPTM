@@ -80,7 +80,7 @@ public class Scheduler extends Thread{
 		scheduled_ops = new ArrayList<Operation>();
         completed_ops = new ArrayList<Operation>();
         stalledTxns = new TransactionList();
-        lockTree = new LockTree();
+        lockTree = new LockTree(_verbose);
         txnMgrDoneFlag = false;
         dataMgrExitFlag = false;
         tm_task = tm;
@@ -152,7 +152,6 @@ public class Scheduler extends Thread{
             try {
 				sleep(50);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
         }
@@ -244,7 +243,7 @@ public class Scheduler extends Thread{
         		if (lockTree.acquireLock(sourceTxn)) {
         			scheduled_ops.add(sourceTxn.get(0));
         			
-        			if (debugFlag) {
+        			if (verbose) {
         				System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
         			}
         		}
@@ -257,7 +256,7 @@ public class Scheduler extends Thread{
         			sourceTxn.abortedFlag = true;
         		}
 
-        		if (debugFlag) {
+        		if (verbose) {
         			System.out.println("Sent op type [" + sourceTxn.get(0).type + "] for txn ID [" + sourceTxn.tid + "]");
         		}
         	}
@@ -278,7 +277,7 @@ public class Scheduler extends Thread{
     		currTxn = iter.next();
         		
     		if (!currTxn.isEmpty()){
-    			if (debugFlag) {
+    			if (verbose) {
     				System.out.println("Txn ID[" + currTxn.tid + "] now has [" + currTxn.size() + "] ops.");
     			}
     			
@@ -323,7 +322,7 @@ public class Scheduler extends Thread{
     		Operation currOp = null;
 
     		while(!completed_ops.isEmpty()){
-    			if (debugFlag) {
+    			if (verbose) {
     				System.out.println("[Sched] Completed ops size:[" + String.valueOf(completed_ops.size()) + "]");
     			}
 
@@ -332,7 +331,7 @@ public class Scheduler extends Thread{
     			// Used for debug printing.
     			Operation currOpTemp = null;
     			
-    			if (debugFlag) {
+    			if (verbose) {
     				for (int index = 0; index < completed_ops.size(); ++index) {
     					currOpTemp = completed_ops.get(index);
     					System.out.println("[Sched] Before remove: Operations to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
@@ -342,22 +341,23 @@ public class Scheduler extends Thread{
     			// Pull the next completed operation off the list.
     			currOp = completed_ops.remove(0);
 
-    			if (debugFlag) {
+    			if (verbose) {
     				for (int index = 0; index < completed_ops.size(); ++index) {
     					currOpTemp = completed_ops.get(index);
     					System.out.println("[Sched] After remove: Operation to process: Type [" + currOpTemp.type + "] TxnId [" + currOpTemp.tid + "]");
     				}
     			}
 
-    			if (debugFlag) {
+    			if (verbose) {
     				System.out.println("[Sched] Operation to process: Type [" + currOp.type + "] TxnId [" + currOp.tid + "]");
     			}
 
     			parentTxn = transactions.getByTID(currOp.tid);
 
     			if ((currOp.type.equals("C")) || (currOp.type.equals("A"))){
-    				// TODO: (jmg199) REMOVE AFTER TESTING.
-    				System.out.println("[Sched] Transaction ID [" + parentTxn.tid + "] ended with operation [" + currOp.type + "]");
+    				if (verbose) {
+    					System.out.println("[Sched] Transaction ID [" + parentTxn.tid + "] ended with operation [" + currOp.type + "]");
+    				}
 
     				// This transaction has committed or aborted, so release it's locks and
     				// remove it from the transaction list.
@@ -373,7 +373,7 @@ public class Scheduler extends Thread{
     					System.out.println("[Sched] DID NOT REMOVE THE COMMITED/ABORTED TXN FROM THE TRANSACTIONS LIST!");
     				}
     				else {
-    					System.out.println("[Sched] Removed txn id [" + parentTxn.tid + "].");
+    					System.out.println("[Sched] TxnID [" + parentTxn.tid + "] completed. Removed from txn list.");
     				}
     				// Remove the operation from the transaction's operation list.
     				parentTxn.remove(0);
@@ -389,7 +389,7 @@ public class Scheduler extends Thread{
     					// Schedule the next operation in the parentTxn.
     					scheduleNextOp(parentTxn);
     				}
-    				else {
+    				else if (verbose){
     					System.out.println("[Sched] TxnID [" + parentTxn.tid + "] is aborted.");
     				}
     			}
@@ -401,23 +401,22 @@ public class Scheduler extends Thread{
     
 
     /*
-     *
+     * This method releases all of the locks for the specified transaction.
      */
     public void releaseLocks(Transaction sourceTxn){
-    	// TODO: (jmg199) REMOVE AFTER TESTING.
-    	System.out.println("[Sched] Releasing all locks.");
+    	System.out.println("[Sched] Releasing all locks for TxnId [" + sourceTxn.tid + "].");
 
     	// If there are file locks, all pending record locks need to be checked
     	// since they may
-    	//boolean triggerFullRecLockCheck = !sourceTxn.grantedFileLocks.isEmpty();
     	ArrayList<RecordLockTree> fullRecLockCheckList = new ArrayList<RecordLockTree>();
 
     	// Release the file locks.
     	Iterator<RecordLockTree> fileLockIter = sourceTxn.grantedFileLocks.iterator();
     	RecordLockTree currRecTree;
     	
-    	// TODO: (jmg199) REMOVE AFTER TESTING.
-    	System.out.println("[Sched] Releasing txn: Num granted file locks [" + sourceTxn.grantedFileLocks.size() + "]");
+    	if (verbose) {
+    		System.out.println("[Sched] Releasing txn: Num granted file locks [" + sourceTxn.grantedFileLocks.size() + "]");
+    	}
     	
     	// This variable stores the reference to a queued txn which was then granted this
     	// lock being released.
@@ -425,23 +424,23 @@ public class Scheduler extends Thread{
     	boolean hasPendingFileLocks = false;
 
     	while (fileLockIter.hasNext()){
-    		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.println("[Sched] Releasing all *file* locks.");
+    		if (verbose) {
+    			System.out.println("[Sched] Releasing all *file* locks.");
+    		}
     		
     		currRecTree = fileLockIter.next();
 
     		// Must be checked before releasing the file lock.
     		hasPendingFileLocks = currRecTree.hasQueuedFileLocks();
 
-    		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		if (hasPendingFileLocks) {
+    		if (verbose && hasPendingFileLocks) {
     			System.out.println("[Sched] There are pending file locks.");
     		}
     		
     		queuedTxnGrantedLock = currRecTree.releaseFileLock();
 
     		if (queuedTxnGrantedLock != null){
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    			// Print to console.
     			System.out.println("[Sched] Txn ID [" + queuedTxnGrantedLock.tid + 
     					"] was granted the file lock and will now be scheduled.");
     			
@@ -456,8 +455,9 @@ public class Scheduler extends Thread{
             	scheduled_ops.add(queuedTxnGrantedLock.get(0));
     		}
     		else if(currRecTree.queuedRecLockTypeList.size() > 0){
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
-    			System.out.println("[Sched] Will attempt to grant all record locks in record tree.");
+    			if (verbose) {
+    				System.out.println("[Sched] Will attempt to grant all record locks in record tree.");
+    			}
     			
     			// Another file lock was not granted and there are record locks
     			// waiting to be granted. All record locks must be traversed and
@@ -491,8 +491,9 @@ public class Scheduler extends Thread{
     	// Now check if file locks were released that were flagged as having
     	// record locks which need to be granted.
     	if (!fullRecLockCheckList.isEmpty()){
-    		// TODO: (jmg199) REMOVE AFTER TESTING.
-    		System.out.println("[Sched] Attempting to grant all record locks in record tree.");
+    		if (verbose) {
+    			System.out.println("[Sched] Attempting to grant all record locks in record tree.");
+    		}
     			
     		Iterator<RecordLockTree> fullRecLockCheckIter = fullRecLockCheckList.iterator();
     		LockType currLockType = null;
@@ -515,7 +516,7 @@ public class Scheduler extends Thread{
     				queuedTxnGrantedLock = currLockType.parentRecordLock.attemptAcquireForNextQueuedTxn();
 
     	    		if (queuedTxnGrantedLock != null){
-    	    			// TODO: (jmg199) REMOVE AFTER TESTING.
+    	    			// Print to console.
     	    			System.out.println("[Sched] Txn ID [" + queuedTxnGrantedLock.tid + 
     	    					"] was granted a record lock after the release of a file lock and will now be scheduled.");
     	    			
@@ -539,32 +540,19 @@ public class Scheduler extends Thread{
     	synchronized(this){
     		// If an abort has already been made on this txn just let it go.
     		if (!targetTxn.abortedFlag) {
-    			// Rip out any scheduled operation.
-    			boolean schedOpFound = false;
-    			//for (int index = 0; index < scheduled_ops.size(); ++index) {
-    			//	if (scheduled_ops.get(index).tid == targetTxn.tid) {
-    			//		scheduled_ops.remove(index);
-    			//		schedOpFound = true;
-    			//	}
-    			//}
-    			
-    			// Don't bother looking for queued locks if an op was scheduled.
-    			// A transaction will never be queued for a lock and have a scheduled
-    			// op at the same time.
-    			if (!schedOpFound) {
-    				for (Map.Entry<String, RecordLockTree> entry : lockTree.fileTree.entrySet()) {
-    					RecordLockTree currRecLockTree = entry.getValue();
-    					
-    					// Remove any queued file locks.
-    					currRecLockTree.queuedList.removeByTID(targetTxn.tid);
-    					
-    					// Remove any queued record lock types from the tree level.
-    					currRecLockTree.queuedRecLockTypeList.remove(targetTxn.tid);
-    					
-    					// Remove any queued record lock types from the record lock class.
-    					for (Map.Entry<Integer, RecordLock> recLockEntry : currRecLockTree.entrySet()) {
-    						recLockEntry.getValue().queuedList.remove(targetTxn.tid);
-    					}
+    			// Remove all of the queued locks.
+    			for (Map.Entry<String, RecordLockTree> entry : lockTree.fileTree.entrySet()) {
+    				RecordLockTree currRecLockTree = entry.getValue();
+
+    				// Remove any queued file locks.
+    				currRecLockTree.queuedList.removeByTID(targetTxn.tid);
+
+    				// Remove any queued record lock types from the tree level.
+    				currRecLockTree.queuedRecLockTypeList.remove(targetTxn.tid);
+
+    				// Remove any queued record lock types from the record lock class.
+    				for (Map.Entry<Integer, RecordLock> recLockEntry : currRecLockTree.entrySet()) {
+    					recLockEntry.getValue().queuedList.remove(targetTxn.tid);
     				}
     			}
     			
@@ -581,23 +569,13 @@ public class Scheduler extends Thread{
     			
     			scheduleNextOp(targetTxn);
     			
-    			// TODO: (jmg199) REMOVE AFTER TESTING.
-    			System.out.println("[Sched] About to rattle off scheduled ops.");
-    			for (int index = (scheduled_ops.size() - 1); index >= 0; --index) {
-    				System.out.println("[Sched] operation[" + index + "] TYPE: [" + scheduled_ops.get(index).type + 
-    						"] TID: [" + scheduled_ops.get(index).tid + "]");
+    			if (verbose) {
+    				for (int index = (scheduled_ops.size() - 1); index >= 0; --index) {
+    					System.out.println("[Sched] operation[" + index + "] TYPE: [" + scheduled_ops.get(index).type + 
+    							"] TID: [" + scheduled_ops.get(index).tid + "]");
+    				}
     			}
     		}
     	}
     }
-
-
-    /* @summary
-     * This method attempts to get the necessary locks for the operation.
-     */
-    //private boolean getLock(Transaction targetTxn){
-    //	// TODO: (jmg199) FINISH THE getLock() method.
-    //
-    //	return true;
-    //}
 }

@@ -34,7 +34,7 @@ public class TransactionList extends CopyOnWriteArrayList<Transaction>{
 
     /*
      * @summary
-     *
+     * 
      */
     public Transaction getByIndex(int index){
         if (index >= size()){
@@ -72,7 +72,7 @@ public class TransactionList extends CopyOnWriteArrayList<Transaction>{
 
     /*
      * @summary
-     *
+     * This method removes the transaction by it's ID.
      */
     public boolean removeByTID(int tid){
         for (int i = 0; i < size(); i++){
