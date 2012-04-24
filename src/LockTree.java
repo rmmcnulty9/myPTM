@@ -8,13 +8,16 @@ public class LockTree {
 	// This tree organizes the locks by filename.
 	public TreeMap<String,RecordLockTree> fileTree = null;
 	//private TreeMap<String,TreeMap<Integer, Lock>> fileTree = null;
+	
+	private boolean verbose = false;
 
 	
 	/*
 	 * Class ctor.
 	 */
-	public LockTree(){
+	public LockTree(boolean _verbose){
 		fileTree = new TreeMap<String, RecordLockTree>();
+		verbose = _verbose;
 	}
 
 
@@ -36,11 +39,12 @@ public class LockTree {
 		RecordLockTree recordTree = fileTree.get(currOp.filename);
 
 		if (recordTree == null){
-			// TODO: (jmg199) REMOVE AFTER TESTING.
-			System.out.println("[Sched.LockTree] Need new RecordLockTree for file [" + currOp.filename + "]");
+			if (verbose) {
+				System.out.println("[Sched.LockTree] Need new RecordLockTree for file [" + currOp.filename + "]");
+			}
 			
 			// No locks yet exist for this file.
-			recordTree = new RecordLockTree();
+			recordTree = new RecordLockTree(verbose);
 
 			// Add the Record tree to the file tree.
 			fileTree.put(currOp.filename, recordTree);
@@ -62,7 +66,7 @@ public class LockTree {
 			}
 			else {
 				// Create the record lock.
-				targetLock = new RecordLock(targetTxn);
+				targetLock = new RecordLock(targetTxn, verbose);
 
 				// Insert it into the record tree.
 				recordTree.put(targetLock.recordLockId, targetLock);
@@ -73,11 +77,10 @@ public class LockTree {
 			}
 		}
 		else{
-			// TODO: (jmg199) REMOVE AFTER TESTING.
-			System.out.println("[Sched.LockTree] Located RecordLockTree for file [" + currOp.filename + "]");
-			
-			// TODO: (jmg199) REMOVE AFTER TESTING.
-			System.out.println("[Sched.LockTree] OPERATION TYPE [" + currOp.type + "]");
+			if (verbose) {
+				System.out.println("[Sched.LockTree] Located RecordLockTree for file [" + currOp.filename + "]");
+				System.out.println("[Sched.LockTree] OPERATION TYPE [" + currOp.type + "]");
+			}
 
 			if (currOp.type.equals("D")){
 				// Deletes occur at the file level. As twisted as this sounds, the
@@ -85,19 +88,23 @@ public class LockTree {
 				// when locking a file the transaction doing the delete is stored
 				// in the record tree.
 				
-				// TODO: (jmg199) REMOVE AFTER TESTING.
-				System.out.println("[Sched.LockTree] Processing a delete operation.");
+				if (verbose) {
+					System.out.println("[Sched.LockTree] Processing a delete operation.");
+				}
 				
+				// Check if the transaction already has a file lock.
 				if (recordTree.hasFileLock(targetTxn)){
-					// TODO: (jmg199) REMOVE AFTER TESTING.
-					System.out.println("[Sched.LockTree] Txn already has file lock.");
+					if (verbose) {
+						System.out.println("[Sched.LockTree] Txn already has file lock.");
+					}
 					
 					// Already have the lock.
 					return true;
 				}
 				else {
-					// TODO: (jmg199) REMOVE AFTER TESTING.
-					System.out.println("[Sched.LockTree] Attempting to acquire file lock for file [" + currOp.filename + "]");
+					if (verbose) {
+						System.out.println("[Sched.LockTree] Attempting to acquire file lock for file [" + currOp.filename + "]");
+					}
 					
 					return recordTree.attemptAcquireFileLock(targetTxn);
 				}
@@ -117,7 +124,7 @@ public class LockTree {
 					}
 
 					if (targetLock == null){
-						targetLock = new RecordLock(targetTxn);
+						targetLock = new RecordLock(targetTxn, verbose);
 
 						// Insert it into the record tree.
 						recordTree.put(targetLock.recordLockId, targetLock);

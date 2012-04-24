@@ -15,10 +15,6 @@ public class Transaction extends ArrayList<Operation> {
 	private static final long serialVersionUID = -8187588735709506147L;
 
 
-	/*
-	 * TODO I believe we might only need to hold on to the BufferedReader,
-	 *  but since we have the structure already I have left it
-	 */
 	String filename;
 	FileInputStream fis;
 	DataInputStream dis;
@@ -71,7 +67,7 @@ public class Transaction extends ArrayList<Operation> {
 	 */
 	public void wound(Transaction attackingTxn) {
 		if (attackingTxn.txnStart.isBefore(txnStart)) {
-			// TODO: (jmg199) REMOVE AFTER TESTING.
+			// Print to console.
 			System.out.println("Attacking TxnID [" + attackingTxn.tid + "] has wounded TxnID [" + tid + "].");
         			
 			// The file lock requesting txn is older than the current record lock holder, so abort it.

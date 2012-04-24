@@ -15,6 +15,8 @@ public class RecordLock {
 	public RecordLockTree parentRecLockTree = null;
 
 	public int recordLockId;
+	
+	private boolean verbose = false;
 
 	/*
 	 * @summary Class ctor.
@@ -22,7 +24,7 @@ public class RecordLock {
 	 * @param sourceLockType The transaction is used to determine the the id of
 	 * the record for which the RecordLock applies.
 	 */
-	public RecordLock(Transaction sourceTxn) {
+	public RecordLock(Transaction sourceTxn, boolean _verbose) {
 		grantedList = new TreeMap<Integer, LockType>();
 		queuedList = new TreeMap<Integer, LockType>();
 
@@ -36,21 +38,23 @@ public class RecordLock {
 			recordLockId = Integer.valueOf(currOp.val);
 		}
 
+		verbose = _verbose;
 	}
 
 	/*
      *
      */
 	public boolean attemptAcquire(Transaction sourceTxn) {
-		// TODO: (jmg199) REMOVE AFTER TESTING.
-		System.out.println("[Lock] Attempting to acquire lock for txn ID ["
-				+ sourceTxn.tid + "]");
+		if (verbose) {
+			System.out.println("[Lock] Attempting to acquire lock for txn ID ["
+					+ sourceTxn.tid + "]");
+		}
 
 		LockType sourceLockType = new LockType(sourceTxn, this);
 
 		if (canAcquire(sourceLockType)) {
 			acquire(sourceLockType);
-			// TODO: (jmg199) REMOVE AFTER TESTING.
+			// Print to console.
 			System.out.println("[Lock] Lock acquired for txn ID ["
 					+ sourceTxn.tid + "]");
 
@@ -64,7 +68,7 @@ public class RecordLock {
 			parentRecLockTree.queuedRecLockTypeList.put(
 					sourceLockType.lockHolder.tid, sourceLockType);
 
-			// TODO: (jmg199) REMOVE AFTER TESTING.
+			// Print to console.
 			System.out.println("[Lock] Queuing txn ID [" + sourceTxn.tid
 					+ "] for record lock ID [" + recordLockId + "]");
 
@@ -128,24 +132,18 @@ public class RecordLock {
 				// if the file lock was waiting for the release of this lock.
 				nextTxn = parentRecLockTree.attemptAcquireQueuedFileLock();
 
-				// TODO: (jmg199) REMOVE AFTER TESTING.
-				if (nextTxn != null) {
+				if (verbose && (nextTxn != null)) {
 					System.out
 							.println("[Sched] TxnId ["
 									+ nextTxn.tid
 									+ "] was granted *file* lock after release of record lock ID ["
 									+ recordLockId + "]");
 				}
-			} else {
-				// TODO: (jmg199) REMOVE AFTER TESTING.
+			} else if (verbose){
 				System.out
 						.println("[Sched] TxnId [" + nextTxn.tid
 								+ "] was granted record lock ID ["
 								+ recordLockId + "]");
-
-				if (recordLockId == 446) {
-					System.out.println("[Sched] A Place to break on.");
-				}
 			}
 
 			return nextTxn;

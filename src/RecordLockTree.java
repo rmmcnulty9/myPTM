@@ -20,15 +20,18 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	//public CopyOnWriteArrayList<RecordLock> queuedRecLockList = null;
 	public TreeMap<Integer, LockType> queuedRecLockTypeList = null;
 	
+	private boolean verbose = false;
+	
 
 
 	/*
-	 * Default class ctor.
+	 * Class ctor.
 	 */
-	public RecordLockTree(){
+	public RecordLockTree(boolean _verbose){
 		queuedList = new TransactionList();
 		grantedRecLockTypeList = new TreeMap<Integer, LockType>();
 		queuedRecLockTypeList = new TreeMap<Integer, LockType>();
+		verbose = _verbose;
 	}
 
 
@@ -127,26 +130,27 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	 */
 	public boolean attemptAcquireFileLock(Transaction targetTxn){
 		if (canAcquireFileLock(targetTxn)){
-			// TODO: (jmg199) REMOVE AFTER TESTING.
-			System.out.println("[Sched.RecordLockTree] Acquiring file lock.");
+			// Print to console.
+			System.out.println("[Sched.RecordLockTree] Acquiring file lock for TxnID [" + targetTxn.tid + "].");
 					
 			acquireFileLock(targetTxn);
 			return true;
 		}
 		else {
-			// TODO: (jmg199) BEGIN REMOVE AFTER TESTING.
+			// Print to console.
 			System.out.println("[Sched.RecordLockTree] Queuing transaction id [" + targetTxn.tid + "] for file lock.");
 			
-			if (txnGrantedFileLock != null) {
-				System.out.println("[Sched.RecordLockTree] Transaction id [" + txnGrantedFileLock.tid + "] currently holding file lock.");
+			if (verbose) {
+				if (txnGrantedFileLock != null) {
+					System.out.println("[Sched.RecordLockTree] Transaction id [" + txnGrantedFileLock.tid + "] currently holding file lock.");
+				}
+				else if (!grantedRecLockTypeList.isEmpty()) {
+					System.out.println("[Sched.RecordLockTree] There are granted record locks in this tree which are older.");
+				}
+				else {
+					System.out.println("[Sched.RecordLockTree] What's going on here?");
+				}
 			}
-			else if (!grantedRecLockTypeList.isEmpty()) {
-				System.out.println("[Sched.RecordLockTree] There are granted record locks in this tree which are older.");
-			}
-			else {
-				System.out.println("[Sched.RecordLockTree] What's going on here?");
-			}
-			// TODO: (jmg199) END REMOVE AFTER TESTING.
 			
 			queuedList.add(targetTxn);
 			return false;
@@ -221,8 +225,6 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	public boolean isBlockedByFileLock(Transaction targetTransaction){
 		if (txnGrantedFileLock != null){
 			// It's only blocked if the lock holder isn't the target transaction.
-			// TODO: (jmg199) REMOVE AFTER TESTING.
-//			if (targetTransaction == txnGrantedFileLock){
 			if (targetTransaction.equals(txnGrantedFileLock)){
 				return false;
 			}
@@ -253,8 +255,9 @@ public class RecordLockTree extends TreeMap<Integer, RecordLock>{
 	public void attemptToWound(Transaction attackingTxn){
 		if (txnGrantedFileLock != null){
 			if (attackingTxn.txnStart.isBefore(txnGrantedFileLock.txnStart)){
-				// TODO: (jmg199) BEGIN REMOVE AFTER TESTING.
-				System.out.println("[Sched.RecordLockTree] Aborting transaction id [" + txnGrantedFileLock.tid + "].");
+				// Print to console.
+				System.out.println("[Sched.RecordLockTree] Attacking TxnID [" + 
+						attackingTxn.tid + "] has wounded TxnID [" + txnGrantedFileLock.tid + "].");
 				
 				// Tell the scheduler to abort this txn.
 				Scheduler.getSched().abort(txnGrantedFileLock);
