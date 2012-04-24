@@ -222,7 +222,10 @@ public class DataManager extends Thread {
 		scheduler.setDMExitFlag();
 
 		System.out.println("[DM] Data Manager is exiting...");
-
+		System.out.println("------------READ/WRITE PERCENTAGES-----------");
+		System.out.println("READ % "+ ((double)read_count/((double)read_count+(double)write_count)));
+		System.out.println("WRITE % "+ ((double)write_count/((double)read_count+(double)write_count)));
+		System.out.println("-----------------------------------------------");
 	}
 
 	private int addRecordToFileHash(DataFile df, Record record, int tid, int next_pid, boolean log_op) {
